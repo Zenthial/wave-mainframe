@@ -1,19 +1,28 @@
-use crate::{ranks::Ranks, AppState};
+use std::sync::Mutex;
+
+use crate::{
+    api_down_queue,
+    promotion::{demote, promote, should_demote, should_promote},
+    ranks::Ranks,
+    AppState,
+};
 use actix_web::{
-    delete, get, patch, put,
+    delete, get, patch, post, put,
     web::{self, Data, Json, Path},
     HttpResponse,
 };
 use firebase_realtime_database::FirebaseError;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize)]
-struct User {
-    name: String,
+#[derive(Deserialize, Serialize, Debug)]
+pub struct User {
     #[serde(default)]
-    points: u64,
+    pub user_id: i32,
+    pub name: String,
     #[serde(default)]
-    rank: Ranks,
+    pub points: u64,
+    #[serde(default)]
+    pub rank: Ranks,
 }
 
 async fn parse_user_result(result: Result<reqwest::Response, FirebaseError>) -> HttpResponse {
@@ -44,7 +53,9 @@ async fn parse_user_result(result: Result<reqwest::Response, FirebaseError>) -> 
 }
 
 #[delete("users/{user_id}")]
-async fn delete_user(path: Path<u64>, data: Data<AppState>) -> HttpResponse {
+async fn delete_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
+    let data = mutex.lock().unwrap();
+
     let user_id = path.into_inner();
     let delete_result = data
         .database
@@ -78,7 +89,13 @@ async fn delete_user(path: Path<u64>, data: Data<AppState>) -> HttpResponse {
 }
 
 #[put("users/{user_id}")]
-async fn create_user(path: Path<u64>, user: Json<User>, data: Data<AppState>) -> HttpResponse {
+async fn create_user(
+    path: Path<u64>,
+    user: Json<User>,
+    mutex: Data<Mutex<AppState>>,
+) -> HttpResponse {
+    let data = mutex.lock().unwrap();
+
     let user_id = path.into_inner();
     let create_result = data
         .database
@@ -89,7 +106,13 @@ async fn create_user(path: Path<u64>, user: Json<User>, data: Data<AppState>) ->
 }
 
 #[patch("users/{user_id}")]
-async fn update_user(path: Path<u64>, user: Json<User>, data: Data<AppState>) -> HttpResponse {
+async fn update_user(
+    path: Path<u64>,
+    user: Json<User>,
+    mutex: Data<Mutex<AppState>>,
+) -> HttpResponse {
+    let data = mutex.lock().unwrap();
+
     let user_id = path.into_inner();
     let update_result = data
         .database
@@ -100,7 +123,9 @@ async fn update_user(path: Path<u64>, user: Json<User>, data: Data<AppState>) ->
 }
 
 #[get("users/{user_id}")]
-async fn get_user(path: Path<u64>, data: Data<AppState>) -> HttpResponse {
+async fn get_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
+    let data = mutex.lock().unwrap();
+
     let user_id = path.into_inner();
     let user_result = data
         .database
@@ -110,9 +135,58 @@ async fn get_user(path: Path<u64>, data: Data<AppState>) -> HttpResponse {
     parse_user_result(user_result).await
 }
 
+#[derive(Deserialize)]
+struct PointsBody {
+    points_to_add: u64,
+}
+
+#[post("users/{user_id}")]
+async fn add_points(
+    path: Path<u64>,
+    body: Json<PointsBody>,
+    mutex: Data<Mutex<AppState>>,
+) -> HttpResponse {
+    let mut data = mutex.lock().unwrap();
+    let user_id = path.into_inner();
+    let user_result = data
+        .database
+        .get(format!("users/{}", user_id).as_str())
+        .await;
+
+    match user_result {
+        Ok(response) => {
+            let mut user = response.json::<User>().await.unwrap();
+            user.points += body.points_to_add;
+
+            if !should_promote(&user) {
+                if should_demote(&user) {
+                    let success = demote(&mut user, &mut data.roblox_user).await;
+                    if !success {
+                        api_down_queue::add_demote(&data.database, &user).await;
+                    }
+                }
+            } else {
+                let success = promote(&mut user, &mut data.roblox_user).await;
+                if !success {
+                    api_down_queue::add_promote(&data.database, &user).await;
+                }
+            }
+
+            let update_result = data
+                .database
+                .update(format!("users/{}", user_id).as_str(), &user)
+                .await;
+
+            return parse_user_result(update_result).await;
+        }
+        Err(e) => return HttpResponse::InternalServerError().body(e.message),
+    }
+}
+
 pub fn configure_users(cfg: &mut web::ServiceConfig) {
     cfg.service(get_user);
     cfg.service(update_user);
     cfg.service(create_user);
     cfg.service(delete_user);
+    cfg.service(add_points);
 }

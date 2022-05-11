@@ -1,6 +1,8 @@
+#![allow(dead_code)]
+
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum Ranks {
     Chairman,
     Marshal,
@@ -29,7 +31,7 @@ impl Default for Ranks {
 }
 
 impl Ranks {
-    fn to_value(&self) -> u32 {
+    pub fn to_value(&self) -> u32 {
         match &self {
             Ranks::Chairman => 255,
             Ranks::Marshal => 254,
@@ -49,6 +51,75 @@ impl Ranks {
             Ranks::Operative => 9,
             Ranks::Trooper => 7,
             Ranks::Enlisted => 5,
+        }
+    }
+
+    pub fn to_role_id(&self) -> u32 {
+        match &self {
+            Ranks::Chairman => 25617739,
+            Ranks::Marshal => 25617740,
+            Ranks::Colonel => 25617767,
+            Ranks::Captain => 25617779,
+            Ranks::Lieutenant => 25617781,
+            Ranks::Ensign => 25617796,
+            Ranks::SergeantMajorOfTheAlliance => 80131938,
+            Ranks::StaffSergeant => 80131906,
+            Ranks::TechSergeant => 80131913,
+            Ranks::Veteran => 26253933,
+            Ranks::Corporal => 25617802,
+            Ranks::LanceCorporal => 26539946,
+            Ranks::Sentinel => 26539927,
+            Ranks::Fleetman => 26539923,
+            Ranks::Specialist => 25617809,
+            Ranks::Operative => 26539897,
+            Ranks::Trooper => 26539881,
+            Ranks::Enlisted => 25617741,
+        }
+    }
+
+    pub fn get_next(&self) -> Option<Ranks> {
+        match &self {
+            Ranks::Chairman => None,
+            Ranks::Marshal => Some(Ranks::Chairman),
+            Ranks::Colonel => Some(Ranks::Marshal),
+            Ranks::Captain => Some(Ranks::Colonel),
+            Ranks::Lieutenant => Some(Ranks::Captain),
+            Ranks::Ensign => Some(Ranks::Lieutenant),
+            Ranks::SergeantMajorOfTheAlliance => Some(Ranks::Ensign),
+            Ranks::StaffSergeant => Some(Ranks::SergeantMajorOfTheAlliance),
+            Ranks::TechSergeant => Some(Ranks::TechSergeant),
+            Ranks::Veteran => None,
+            Ranks::Corporal => Some(Ranks::TechSergeant),
+            Ranks::LanceCorporal => Some(Ranks::Corporal),
+            Ranks::Sentinel => Some(Ranks::LanceCorporal),
+            Ranks::Fleetman => Some(Ranks::Sentinel),
+            Ranks::Specialist => Some(Ranks::Fleetman),
+            Ranks::Operative => Some(Ranks::Specialist),
+            Ranks::Trooper => Some(Ranks::Operative),
+            Ranks::Enlisted => Some(Ranks::Trooper),
+        }
+    }
+
+    pub fn get_prev(&self) -> Option<Ranks> {
+        match &self {
+            Ranks::Chairman => Some(Ranks::Marshal),
+            Ranks::Marshal => Some(Ranks::Colonel),
+            Ranks::Colonel => Some(Ranks::Captain),
+            Ranks::Captain => Some(Ranks::Lieutenant),
+            Ranks::Lieutenant => Some(Ranks::Ensign),
+            Ranks::Ensign => Some(Ranks::SergeantMajorOfTheAlliance),
+            Ranks::SergeantMajorOfTheAlliance => Some(Ranks::StaffSergeant),
+            Ranks::StaffSergeant => Some(Ranks::TechSergeant),
+            Ranks::TechSergeant => Some(Ranks::Corporal),
+            Ranks::Veteran => None,
+            Ranks::Corporal => Some(Ranks::LanceCorporal),
+            Ranks::LanceCorporal => Some(Ranks::Sentinel),
+            Ranks::Sentinel => Some(Ranks::Fleetman),
+            Ranks::Fleetman => Some(Ranks::Specialist),
+            Ranks::Specialist => Some(Ranks::Operative),
+            Ranks::Operative => Some(Ranks::Trooper),
+            Ranks::Trooper => Some(Ranks::Enlisted),
+            Ranks::Enlisted => None,
         }
     }
 }
