@@ -6,7 +6,7 @@ mod users;
 
 use actix_web::{get, web, App, HttpServer};
 use api_down_queue::start_jobs;
-use firebase_realtime_database::*;
+use firebase_realtime_database::{create_database, get_oauth_token, Database};
 use roblox::RobloxAccount;
 use std::{
     fs::File,
