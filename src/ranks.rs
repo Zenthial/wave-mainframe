@@ -132,7 +132,7 @@ impl ToString for Ranks {
             Ranks::Colonel => String::from("Colonel"),
             Ranks::Captain => String::from("Captain"),
             Ranks::Lieutenant => String::from("Lieutenant"),
-            Ranks::Ensign => String::from("Engisn"),
+            Ranks::Ensign => String::from("Ensign"),
             Ranks::SergeantMajorOfTheAlliance => String::from("Sergeant Major of the Alliance"),
             Ranks::StaffSergeant => String::from("Staff Sergeant"),
             Ranks::TechSergeant => String::from("Tech Sergeant"),
