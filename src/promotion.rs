@@ -47,6 +47,10 @@ pub fn should_demote(user: &User) -> bool {
 }
 
 pub async fn promote(user: &mut User, roblox_account: &mut RobloxAccount) -> bool {
+    if !should_promote(user) {
+        return false;
+    }
+
     let next_rank = if let Some(rank) = user.rank.get_next() {
         rank
     } else {
@@ -69,6 +73,10 @@ pub async fn promote(user: &mut User, roblox_account: &mut RobloxAccount) -> boo
 }
 
 pub async fn demote(user: &mut User, roblox_account: &mut RobloxAccount) -> bool {
+    if !should_demote(user) {
+        return false;
+    }
+
     let prev_rank = if let Some(rank) = user.rank.get_prev() {
         rank
     } else {
