@@ -1,6 +1,6 @@
 use crate::{ranks::Ranks, roblox::RobloxAccount, users::User};
 
-static WIJ_ID: i32 = 3747606;
+static WIJ_ID: u64 = 3747606;
 
 pub fn get_required_points(rank: Ranks) -> Option<u64> {
     match rank {

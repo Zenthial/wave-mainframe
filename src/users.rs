@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug)]
 pub struct User {
     #[serde(default)]
-    pub user_id: i32,
+    pub user_id: u64,
     pub name: String,
     #[serde(default)]
     pub points: u64,

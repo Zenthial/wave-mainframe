@@ -75,7 +75,7 @@ pub async fn queue_handler(database: &Database, roblox_account: &mut RobloxAccou
     }
 }
 
-pub fn start_jobs(database: Database, mut user: RobloxAccount) {
+pub fn start_queue_jobs(database: Database, mut user: RobloxAccount) {
     task::spawn(async move {
         loop {
             queue_handler(&database, &mut user).await;

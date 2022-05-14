@@ -10,7 +10,7 @@ use crate::ranks::Ranks;
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct UsernameResponse {
-    id: i32,
+    id: u64,
     username: String,
     avatar_uri: Option<String>,
     avatar_final: bool,
@@ -20,17 +20,17 @@ pub struct UsernameResponse {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupInfo {
-    id: i32,
+    id: u64,
     name: String,
-    member_count: i32,
+    member_count: u64,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RoleInfo {
-    id: i32,
+    id: u64,
     name: String,
-    rank: i32,
+    rank: u64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -45,14 +45,14 @@ pub struct GroupResponse {
     data: Vec<UserGroupInfo>,
 }
 
-pub async fn get_user_info_from_id(user_id: i32) -> Result<UsernameResponse, reqwest::Error> {
+pub async fn get_user_info_from_id(user_id: u64) -> Result<UsernameResponse, reqwest::Error> {
     let response = reqwest::get(format!("https://api.roblox.com/users/{}", user_id)).await?;
     let username_response = response.json::<UsernameResponse>().await?;
 
     Ok(username_response)
 }
 
-pub async fn get_rank_in_group(group_id: i32, user_id: i32) -> Result<i32, reqwest::Error> {
+pub async fn get_rank_in_group(group_id: u64, user_id: u64) -> Result<Option<u64>, reqwest::Error> {
     let response = reqwest::get(format!(
         "https://groups.roblox.com/v2/users/{}/groups/roles",
         user_id
@@ -66,9 +66,9 @@ pub async fn get_rank_in_group(group_id: i32, user_id: i32) -> Result<i32, reqwe
         .position(|group_info| group_info.group.id == group_id);
 
     if let Some(i) = index {
-        Ok(group_response.data.get(i).unwrap().role.rank)
+        Ok(Some(group_response.data.get(i).unwrap().role.rank))
     } else {
-        Ok(-1)
+        Ok(None)
     }
 }
 
@@ -152,8 +152,8 @@ impl RobloxAccount {
 
     pub async fn set_rank(
         &mut self,
-        user_id: i32,
-        group_id: i32,
+        user_id: u64,
+        group_id: u64,
         rank: Ranks,
     ) -> Result<bool, reqwest::Error> {
         let mut token = self.token.clone();
