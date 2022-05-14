@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     thread,
     time::{Duration, SystemTime},
 };
@@ -7,32 +6,28 @@ use std::{
 use firebase_realtime_database::Database;
 use tokio::task;
 
-use crate::verify::VerificationCodeBody;
+use crate::verify::get_verification_map;
 
-static THREAD_DELAY: u64 = 60000;
-static ONE_HOUR: u64 = 600000;
+static THREAD_DELAY: u64 = 30000; // 30 sec
+static CLEANUP_TIMEOUT: u64 = 60000 * 5; // five minutes
 
 async fn key_cleanup(database: &Database) {
-    let key_result = database.get("verification/keys/").await;
+    let user_map_option = get_verification_map(database).await;
 
-    if let Ok(response) = key_result {
-        let user_map_option = response
-            .json::<Option<HashMap<String, VerificationCodeBody>>>()
-            .await
-            .unwrap();
-        if let Some(user_map) = user_map_option {
-            for (key, user) in user_map {
-                let current_time = SystemTime::now();
-                if current_time.duration_since(user.creation_time).unwrap()
-                    >= Duration::from_millis(ONE_HOUR)
-                {
-                    let delete_response = database
-                        .delete(format!("verification/keys/{}", key).as_str())
-                        .await;
+    if let Some(user_map) = user_map_option {
+        for (key, user) in user_map {
+            let current_time = SystemTime::now();
+            let time_between_bool = current_time.duration_since(user.creation_time).unwrap()
+                >= Duration::from_millis(CLEANUP_TIMEOUT);
+            if time_between_bool {
+                let delete_response = database
+                    .delete(format!("verification/keys/{}", key).as_str())
+                    .await;
 
-                    if let Err(e) = delete_response {
-                        panic!("{:?}", e);
-                    }
+                if let Err(e) = delete_response {
+                    panic!("{:?}", e);
+                } else if let Ok(_) = delete_response {
+                    println!("deleted code for user {}", user.discord_id);
                 }
             }
         }
