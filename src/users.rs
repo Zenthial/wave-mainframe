@@ -11,7 +11,7 @@ use actix_web::{
     web::{self, Data, Json, Path},
     HttpResponse,
 };
-use firebase_realtime_database::FirebaseError;
+use firebase_realtime_database::{Database, FirebaseError};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -88,6 +88,16 @@ async fn delete_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpRespo
     }
 }
 
+pub async fn put_user(
+    user_id: u64,
+    database_user: User,
+    database: &Database,
+) -> Result<reqwest::Response, FirebaseError> {
+    database
+        .put(format!("users/{}", user_id).as_str(), &database_user)
+        .await
+}
+
 #[put("users/{user_id}")]
 async fn create_user(
     path: Path<u64>,
@@ -97,10 +107,7 @@ async fn create_user(
     let data = mutex.lock().unwrap();
 
     let user_id = path.into_inner();
-    let create_result = data
-        .database
-        .put(format!("users/{}", user_id).as_str(), &user)
-        .await;
+    let create_result = put_user(user_id, user.into_inner(), &data.database).await;
 
     parse_user_result(create_result).await
 }

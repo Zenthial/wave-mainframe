@@ -1,8 +1,8 @@
 use std::{collections::HashMap, sync::Mutex, time::SystemTime};
 
 use actix_web::{
-    get,
-    web::{Data, Path, ServiceConfig},
+    get, post,
+    web::{Data, Json, Path, ServiceConfig},
     HttpResponse,
 };
 use firebase_realtime_database::{Database, FirebaseError};
@@ -128,7 +128,86 @@ async fn get_code(path: Path<String>, mutex: Data<Mutex<AppState>>) -> HttpRespo
     }
 }
 
+pub async fn create_and_insert_user(
+    discord_id: String,
+    roblox_id: u64,
+    database: &Database,
+) -> Result<reqwest::Response, FirebaseError> {
+    let user_result = database
+        .put(
+            format!("verification/discord/{}", discord_id).as_str(),
+            &User {
+                discord_id,
+                roblox_id,
+            },
+        )
+        .await;
+
+    user_result
+}
+
+#[derive(Deserialize)]
+struct CodePostBody {
+    roblox_id: u64,
+    code: String,
+}
+
+#[post("verify/code/")]
+async fn check_code(body: Json<CodePostBody>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
+    let data = mutex.lock().unwrap();
+
+    let code_response = data
+        .database
+        .get(format!("verification/keys/{}", body.code).as_str())
+        .await;
+
+    let res = match code_response {
+        Ok(response) => {
+            let text_result = response.text().await;
+
+            match text_result {
+                Ok(text) => Ok(text),
+                Err(e) => Err(e.to_string()),
+            }
+        }
+        Err(e) => Err(e.message),
+    };
+
+    match res {
+        Ok(text) => {
+            if text == "null" {
+                HttpResponse::NotFound().body("null")
+            } else {
+                let info_result = serde_json::from_str::<VerificationCodeBody>(&text);
+                match info_result {
+                    Ok(user) => {
+                        let result =
+                            create_and_insert_user(user.discord_id, body.roblox_id, &data.database)
+                                .await;
+
+                        match result {
+                            Ok(response) => {
+                                let verification_user = response.json::<User>().await;
+                                match verification_user {
+                                    Ok(user) => HttpResponse::Ok().json(&user),
+                                    Err(e) => {
+                                        HttpResponse::InternalServerError().body(e.to_string())
+                                    }
+                                }
+                            }
+                            Err(e) => HttpResponse::InternalServerError().body(e.message),
+                        }
+                    }
+                    Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
+                }
+            }
+        }
+        Err(e) => HttpResponse::InternalServerError().body(e),
+    }
+}
+
 pub fn configure_verify(cfg: &mut ServiceConfig) {
     cfg.service(get_discord_user);
     cfg.service(get_code);
+    cfg.service(check_code);
 }
