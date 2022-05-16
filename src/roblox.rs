@@ -11,7 +11,7 @@ use crate::ranks::Ranks;
 #[serde(rename_all = "PascalCase")]
 pub struct UsernameResponse {
     id: u64,
-    username: String,
+    pub username: String,
     avatar_uri: Option<String>,
     avatar_final: bool,
     is_online: bool,

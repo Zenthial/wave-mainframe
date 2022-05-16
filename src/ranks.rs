@@ -31,6 +31,30 @@ impl Default for Ranks {
 }
 
 impl Ranks {
+    pub fn from_value(value: u64) -> Option<Ranks> {
+        match value {
+            255 => Some(Ranks::Chairman),
+            254 => Some(Ranks::Marshal),
+            205 => Some(Ranks::Colonel),
+            198 => Some(Ranks::Captain),
+            196 => Some(Ranks::Lieutenant),
+            193 => Some(Ranks::Ensign),
+            192 => Some(Ranks::SergeantMajorOfTheAlliance),
+            191 => Some(Ranks::StaffSergeant),
+            190 => Some(Ranks::TechSergeant),
+            26 => Some(Ranks::Veteran),
+            25 => Some(Ranks::Corporal),
+            21 => Some(Ranks::LanceCorporal),
+            19 => Some(Ranks::Sentinel),
+            17 => Some(Ranks::Fleetman),
+            15 => Some(Ranks::Specialist),
+            9 => Some(Ranks::Operative),
+            7 => Some(Ranks::Trooper),
+            5 => Some(Ranks::Enlisted),
+            _ => None,
+        }
+    }
+
     pub fn to_value(&self) -> u32 {
         match &self {
             Ranks::Chairman => 255,
