@@ -10,11 +10,15 @@ pub enum Ranks {
     Captain,
     Lieutenant,
     Ensign,
+    #[serde(rename = "Sergeant Major of the Alliance")]
     SergeantMajorOfTheAlliance,
+    #[serde(rename = "Staff Sergeant")]
     StaffSergeant,
+    #[serde(rename = "Tech Sergeant")]
     TechSergeant,
     Veteran,
     Corporal,
+    #[serde(rename = "Lance Corporal")]
     LanceCorporal,
     Sentinel,
     Fleetman,
@@ -26,7 +30,7 @@ pub enum Ranks {
 
 impl Default for Ranks {
     fn default() -> Self {
-        Ranks::Enlisted
+        Self::Enlisted
     }
 }
 
@@ -169,6 +173,101 @@ impl ToString for Ranks {
             Ranks::Operative => String::from("Operative"),
             Ranks::Trooper => String::from("Trooper"),
             Ranks::Enlisted => String::from("Enlisted"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum STRanks {
+    Chairman,
+    Marshal,
+    #[serde(rename = "Chief of Staff")]
+    ChiefOfStaff,
+    #[serde(rename = "Chief Advisor")]
+    ChiefAdvisor,
+    #[serde(rename = "Ops Chief")]
+    OpsChief,
+    Infiltrator,
+    Operative,
+    Trooper,
+    Veteran,
+}
+
+impl Default for STRanks {
+    fn default() -> Self {
+        Self::Trooper
+    }
+}
+
+impl ToString for STRanks {
+    fn to_string(&self) -> String {
+        match &self {
+            STRanks::Chairman => String::from("Chairman"),
+            STRanks::Marshal => String::from("Marshal"),
+            STRanks::ChiefOfStaff => String::from("Chief of Staff"),
+            STRanks::ChiefAdvisor => String::from("Chief Advisor"),
+            STRanks::OpsChief => String::from("Ops Chief"),
+            STRanks::Infiltrator => String::from("Infiltrator"),
+            STRanks::Operative => String::from("Operative"),
+            STRanks::Trooper => String::from("Trooper"),
+            STRanks::Veteran => String::from("Veteran"),
+        }
+    }
+}
+
+impl STRanks {
+    pub fn from_value(value: u64) -> Option<Self> {
+        match value {
+            255 => Some(Self::Chairman),
+            245 => Some(Self::Marshal),
+            235 => Some(Self::ChiefOfStaff),
+            225 => Some(Self::ChiefAdvisor),
+            220 => Some(Self::OpsChief),
+            135 => Some(Self::Infiltrator),
+            100 => Some(Self::Operative),
+            97 => Some(Self::Trooper),
+            96 => Some(Self::Veteran),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum SableRanks {
+    Chairman,
+    Marshal,
+    Executive,
+    Consultant,
+    Contractor,
+}
+
+impl Default for SableRanks {
+    fn default() -> Self {
+        Self::Contractor
+    }
+}
+
+impl ToString for SableRanks {
+    fn to_string(&self) -> String {
+        match &self {
+            SableRanks::Chairman => String::from("Chairman"),
+            SableRanks::Marshal => String::from("Marshal"),
+            SableRanks::Executive => String::from("Executive"),
+            SableRanks::Consultant => String::from("Consultant"),
+            SableRanks::Contractor => String::from("Contractor"),
+        }
+    }
+}
+
+impl SableRanks {
+    pub fn from_value(value: u64) -> Option<Self> {
+        match value {
+            255 => Some(SableRanks::Chairman),
+            254 => Some(SableRanks::Marshal),
+            250 => Some(SableRanks::Executive),
+            200 => Some(SableRanks::Consultant),
+            100 => Some(SableRanks::Contractor),
+            _ => None,
         }
     }
 }

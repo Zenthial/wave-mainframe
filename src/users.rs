@@ -3,8 +3,8 @@ use tokio::join;
 
 use crate::{
     api_down_queue,
-    promotion::{demote, promote, should_demote, should_promote},
-    ranks::Ranks,
+    promotion::{demote, get_required_points, promote, should_demote, should_promote},
+    ranks::{Ranks, STRanks, SableRanks},
     roblox::{get_rank_in_group, get_user_info_from_id, UsernameResponse},
     AppState,
 };
@@ -20,15 +20,15 @@ static WIJ_ID: u64 = 3747606;
 static ST_ID: u64 = 3758883;
 static SABLE_ID: u64 = 5430057;
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Divisions {
     #[serde(default)]
-    pub st: bool,
+    pub st: Option<STRanks>,
     #[serde(default)]
-    pub sable: bool,
+    pub sable: Option<SableRanks>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct User {
     #[serde(default)]
     pub user_id: u64,
@@ -36,8 +36,12 @@ pub struct User {
     #[serde(default)]
     pub points: u64,
     #[serde(default)]
+    pub floor_points: Option<u64>,
+    #[serde(default)]
+    pub goal_points: Option<u64>,
+    #[serde(default)]
     pub rank: Ranks,
-    pub divisions: Divisions,
+    pub divisions: Option<Divisions>,
 }
 
 async fn parse_user_result(result: Result<reqwest::Response, FirebaseError>) -> HttpResponse {
@@ -165,24 +169,54 @@ async fn create_user_from_id(roblox_id: u64) -> Option<User> {
     };
 
     let main_group_rank = parse_rank(main_group_result);
-    let st_rank = parse_rank(st_result);
-    let sable_rank = parse_rank(sable_result);
+    let st_rank_option = parse_rank(st_result);
+    let sable_rank_option = parse_rank(sable_result);
 
     let rank = match main_group_rank {
         Some(rank) => Ranks::from_value(rank),
         None => None,
     };
 
+    let st_rank = match st_rank_option {
+        Some(rank) => STRanks::from_value(rank),
+        None => None,
+    };
+
+    let sable_rank = match sable_rank_option {
+        Some(rank) => SableRanks::from_value(rank),
+        None => None,
+    };
+
     if let Some(rank_enum) = rank {
+        let mut divisions = None;
+        if st_rank.is_some() || sable_rank.is_some() {
+            divisions = Some(Divisions {
+                st: st_rank,
+                sable: sable_rank,
+            });
+        }
+
+        let goal_points = match rank_enum.get_next() {
+            Some(rank) => get_required_points(rank),
+            None => None,
+        };
+
+        let required_points = get_required_points(rank_enum.clone());
+
         let user_struct = User {
             user_id: roblox_id,
             name: user_info.username,
-            points: 0,
-            rank: rank_enum,
-            divisions: Divisions {
-                st: st_rank.is_some(),
-                sable: sable_rank.is_some(),
+            points: {
+                if required_points.is_some() {
+                    required_points.unwrap()
+                } else {
+                    0
+                }
             },
+            floor_points: required_points,
+            goal_points,
+            rank: rank_enum,
+            divisions,
         };
 
         return Some(user_struct);
@@ -213,7 +247,12 @@ async fn get_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpResponse
                         let possible_user = create_user_from_id(user_id).await;
 
                         match possible_user {
-                            Some(user) => HttpResponse::Ok().json(&user),
+                            Some(user) => {
+                                let put_response =
+                                    put_user(user.user_id, user.clone(), &data.database).await;
+
+                                parse_user_result(put_response).await
+                            }
                             None => HttpResponse::InternalServerError().body("User is not in WIJ"),
                         }
                     }
