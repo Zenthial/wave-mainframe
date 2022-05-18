@@ -205,7 +205,7 @@ async fn create_user_from_id(roblox_id: u64) -> Option<User> {
 
         let user_struct = User {
             user_id: roblox_id,
-            name: user_info.username,
+            name: user_info.name,
             points: {
                 if required_points.is_some() {
                     required_points.unwrap()

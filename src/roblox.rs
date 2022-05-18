@@ -8,13 +8,15 @@ use serde::{Deserialize, Serialize};
 use crate::ranks::Ranks;
 
 #[derive(Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
+#[serde(rename_all = "camelCase")]
 pub struct UsernameResponse {
-    id: u64,
-    pub username: String,
-    avatar_uri: Option<String>,
-    avatar_final: bool,
-    is_online: bool,
+    description: String,
+    created: String,
+    is_banned: bool,
+    external_app_display_name: String,
+    pub id: u64,
+    pub name: String,
+    pub display_name: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -46,7 +48,7 @@ pub struct GroupResponse {
 }
 
 pub async fn get_user_info_from_id(user_id: u64) -> Result<UsernameResponse, reqwest::Error> {
-    let response = reqwest::get(format!("https://api.roblox.com/users/{}", user_id)).await?;
+    let response = reqwest::get(format!("https://users.roblox.com/v1/users/{}", user_id)).await?;
     let username_response = response.json::<UsernameResponse>().await?;
 
     Ok(username_response)
