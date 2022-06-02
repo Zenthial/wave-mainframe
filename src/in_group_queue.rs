@@ -72,7 +72,10 @@ pub fn start_queue_jobs(database: Database) {
         if queue_result.is_some() {
             let mut queue: LinkedList<User> = queue_result.unwrap();
             loop {
-                queue_handler(&database, &mut queue).await;
+                if queue_handler(&database, &mut queue).await == false {
+                    start_queue_jobs(database);
+                    break;
+                }
                 thread::sleep(Duration::from_millis(THREAD_DELAY));
             }
         }
