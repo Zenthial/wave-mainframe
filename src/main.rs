@@ -1,4 +1,5 @@
 mod api_down_queue;
+mod in_group_queue;
 mod key_generation;
 mod promotion;
 mod ranks;
@@ -9,9 +10,10 @@ mod verify_key_cleanup;
 
 use actix_web::middleware::Logger;
 use actix_web::{get, web, App, HttpServer};
-use api_down_queue::start_queue_jobs;
+use api_down_queue::start_queue_jobs as start_api_jobs;
 use env_logger::Env;
 use firebase_realtime_database::{create_database, get_oauth_token, Database};
+use in_group_queue::start_queue_jobs as start_group_jobs;
 use key_generation::init_keys;
 use roblox::RobloxAccount;
 use std::{
@@ -47,7 +49,8 @@ async fn main() -> Result<()> {
     let job_database = create_database("wave-mainframe-default-rtdb", token.as_str());
 
     start_verify_jobs(job_database.clone());
-    start_queue_jobs(job_database, job_user);
+    start_api_jobs(job_database.clone(), job_user);
+    start_group_jobs(job_database);
     init_keys();
 
     env_logger::init_from_env(Env::default().default_filter_or("info"));

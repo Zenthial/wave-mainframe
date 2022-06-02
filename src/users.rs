@@ -36,6 +36,8 @@ pub struct User {
     #[serde(default)]
     pub points: u64,
     #[serde(default)]
+    pub events: u64,
+    #[serde(default)]
     pub floor_points: Option<u64>,
     #[serde(default)]
     pub goal_points: Option<u64>,
@@ -216,6 +218,7 @@ async fn create_user_from_id(roblox_id: u64) -> Option<User> {
             floor_points: required_points,
             goal_points,
             rank: rank_enum,
+            events: 0,
             divisions,
         };
 

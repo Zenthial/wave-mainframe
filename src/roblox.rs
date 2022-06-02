@@ -44,7 +44,7 @@ pub struct UserGroupInfo {
 
 #[derive(Serialize, Deserialize)]
 pub struct GroupResponse {
-    data: Vec<UserGroupInfo>,
+    data: Option<Vec<UserGroupInfo>>,
 }
 
 pub async fn get_user_info_from_id(user_id: u64) -> Result<UsernameResponse, reqwest::Error> {
@@ -62,13 +62,17 @@ pub async fn get_rank_in_group(group_id: u64, user_id: u64) -> Result<Option<u64
     .await?;
 
     let group_response = response.json::<GroupResponse>().await?;
-    let index = group_response
-        .data
-        .iter()
-        .position(|group_info| group_info.group.id == group_id);
+    if group_response.data.is_some() {
+        let data = group_response.data.unwrap();
+        let index = data
+            .iter()
+            .position(|group_info| group_info.group.id == group_id);
 
-    if let Some(i) = index {
-        Ok(Some(group_response.data.get(i).unwrap().role.rank))
+        if let Some(i) = index {
+            Ok(Some(data.get(i).unwrap().role.rank))
+        } else {
+            Ok(None)
+        }
     } else {
         Ok(None)
     }

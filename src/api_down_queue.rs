@@ -41,6 +41,7 @@ pub async fn queue_handler(database: &Database, roblox_account: &mut RobloxAccou
             .json::<Option<HashMap<String, User>>>()
             .await
             .unwrap();
+
         if let Some(user_map) = user_map_option {
             for (key, mut user) in user_map {
                 let delete_response = database
