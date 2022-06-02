@@ -176,18 +176,12 @@ fn parse_rank(rank_result: Result<Option<u64>, reqwest::Error>) -> Option<u64> {
     }
 }
 
-async fn create_user_from_id(roblox_id: u64) -> Option<User> {
-    let (user_info_result, main_group_result, st_result, sable_result) = join!(
-        get_user_info_from_id(roblox_id),
+async fn get_ranks(roblox_id: u64) -> (Option<Ranks>, Option<STRanks>, Option<SableRanks>) {
+    let (main_group_result, st_result, sable_result) = join!(
         get_rank_in_group(WIJ_ID, roblox_id),
         get_rank_in_group(ST_ID, roblox_id),
         get_rank_in_group(SABLE_ID, roblox_id)
     );
-
-    let user_info: UsernameResponse = match user_info_result {
-        Ok(info) => info,
-        Err(e) => panic!("{}", e.to_string()),
-    };
 
     let main_group_rank = parse_rank(main_group_result);
     let st_rank_option = parse_rank(st_result);
@@ -207,6 +201,19 @@ async fn create_user_from_id(roblox_id: u64) -> Option<User> {
         Some(rank) => SableRanks::from_value(rank),
         None => None,
     };
+
+    (rank, st_rank, sable_rank)
+}
+
+async fn create_user_from_id(roblox_id: u64) -> Option<User> {
+    let (user_info_result, ranks) = join!(get_user_info_from_id(roblox_id), get_ranks(roblox_id),);
+
+    let user_info: UsernameResponse = match user_info_result {
+        Ok(info) => info,
+        Err(e) => panic!("{}", e.to_string()),
+    };
+
+    let (rank, st_rank, sable_rank) = ranks;
 
     if let Some(rank_enum) = rank {
         let mut divisions = None;
@@ -247,6 +254,40 @@ async fn create_user_from_id(roblox_id: u64) -> Option<User> {
     None
 }
 
+async fn reconcile_user(user: &mut User) {
+    let (ranks, user_info) = join!(get_ranks(user.user_id), get_user_info_from_id(user.user_id));
+    let (rank, st_rank, sable_rank) = ranks;
+
+    if let Some(rank_enum) = rank {
+        let mut divisions = None;
+        if st_rank.is_some() || sable_rank.is_some() {
+            divisions = Some(Divisions {
+                st: st_rank,
+                sable: sable_rank,
+            });
+        }
+
+        let goal_points = match rank_enum.get_next() {
+            Some(rank) => get_required_points(rank),
+            None => None,
+        };
+
+        let required_points = get_required_points(rank_enum.clone());
+
+        if required_points.is_some() && user.points < required_points.unwrap() {
+            user.points = required_points.unwrap();
+            user.floor_points = required_points;
+            user.goal_points = goal_points;
+        }
+
+        user.divisions = divisions;
+
+        if user_info.is_ok() {
+            user.name = user_info.unwrap().name;
+        }
+    }
+}
+
 async fn get_real_user_from_deserialize(response: Response) -> Result<User, reqwest::Error> {
     let d_user = response.json::<DeserializeUser>().await?;
 
@@ -256,7 +297,7 @@ async fn get_real_user_from_deserialize(response: Response) -> Result<User, reqw
         None => Ranks::Enlisted,
     };
 
-    let real_user = User {
+    let mut real_user = User {
         user_id: d_user.user_id,
         name: d_user.name,
         points: d_user.points,
@@ -266,6 +307,8 @@ async fn get_real_user_from_deserialize(response: Response) -> Result<User, reqw
         rank: rank_enum,
         divisions: d_user.divisions,
     };
+
+    reconcile_user(&mut real_user).await;
 
     Ok(real_user)
 }

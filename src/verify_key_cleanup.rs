@@ -21,7 +21,7 @@ async fn key_cleanup(database: &Database) {
                 >= Duration::from_millis(CLEANUP_TIMEOUT);
             if time_between_bool {
                 let delete_response = database
-                    .delete(format!("verification/keys/{}", key).as_str())
+                    .delete(format!("verification/awaiting/{}", key).as_str())
                     .await;
 
                 if let Err(e) = delete_response {

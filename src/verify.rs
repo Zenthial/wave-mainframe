@@ -1,14 +1,14 @@
 use std::{collections::HashMap, sync::Mutex, time::SystemTime};
 
 use actix_web::{
-    get, post,
+    get, post, put,
     web::{Data, Json, Path, ServiceConfig},
     HttpResponse,
 };
 use firebase_realtime_database::{Database, FirebaseError};
 use serde::{Deserialize, Serialize};
 
-use crate::{key_generation::get_key, AppState};
+use crate::AppState;
 
 #[derive(Deserialize, Serialize, Debug)]
 struct User {
@@ -30,9 +30,9 @@ struct CodeReturnBody {
 pub async fn get_verification_map(
     database: &Database,
 ) -> Option<HashMap<String, VerificationCodeBody>> {
-    let key_result = database.get("verification/keys/").await;
+    let awaiting_result = database.get("verification/awaiting/").await;
 
-    if let Ok(response) = key_result {
+    if let Ok(response) = awaiting_result {
         let user_map_option = response
             .json::<Option<HashMap<String, VerificationCodeBody>>>()
             .await
@@ -85,45 +85,38 @@ async fn get_discord_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> Http
     parse_user_result(user_result).await
 }
 
-async fn already_has_code(discord_id: &str, database: &Database) -> Option<String> {
-    let user_map_option = get_verification_map(database).await;
-
-    if let Some(user_map) = user_map_option {
-        for (key, user) in user_map {
-            if user.discord_id == discord_id {
-                return Some(key);
-            }
-        }
-    }
-
-    None
+#[derive(Deserialize, Serialize, Debug)]
+struct Body {
+    discord_id: String,
+    username: String,
 }
 
-#[get("verify/code/{user_id}")]
-async fn get_code(path: Path<String>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
+#[put("verify/")]
+async fn put_user(body: Json<Body>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
     let data = mutex.lock().unwrap();
 
-    let user_id = path.into_inner();
-    let potential_key = already_has_code(&user_id, &data.database).await;
+    let discord_id = &body.discord_id;
+    let username = &body.username;
 
-    if let Some(key) = potential_key {
-        HttpResponse::Ok().json(&CodeReturnBody { code: key })
-    } else {
-        let key = get_key();
-        let put_result = data
-            .database
-            .put(
-                format!("verification/keys/{}", key).as_str(),
-                &VerificationCodeBody {
-                    discord_id: user_id,
-                    creation_time: SystemTime::now(),
-                },
-            )
-            .await;
+    let put_result = data
+        .database
+        .put(
+            format!("verification/awaiting/{}", username).as_str(),
+            &VerificationCodeBody {
+                discord_id: discord_id.to_string(),
+                creation_time: SystemTime::now(),
+            },
+        )
+        .await;
 
-        match put_result {
-            Ok(_response) => HttpResponse::Ok().json(&CodeReturnBody { code: key }),
-            Err(e) => HttpResponse::InternalServerError().json(e.message),
+    match put_result {
+        Ok(response) => {
+            println!("response: {:?}", response);
+            HttpResponse::Ok().body(format!("temporarily linked {} to {}", discord_id, username))
+        }
+        Err(e) => {
+            println!("error: {:?}", e);
+            HttpResponse::InternalServerError().json(e.message)
         }
     }
 }
@@ -148,17 +141,17 @@ pub async fn create_and_insert_user(
 
 #[derive(Deserialize)]
 struct CodePostBody {
-    roblox_id: u64,
-    code: String,
+    username: String,
+    user_id: u64,
 }
 
-#[post("verify/code/")]
-async fn check_code(body: Json<CodePostBody>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
+#[post("verify/")]
+async fn check_user(body: Json<CodePostBody>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
     let data = mutex.lock().unwrap();
 
     let code_response = data
         .database
-        .get(format!("verification/keys/{}", body.code).as_str())
+        .get(format!("verification/awaiting/{}", body.username).as_str())
         .await;
 
     let res = match code_response {
@@ -182,7 +175,7 @@ async fn check_code(body: Json<CodePostBody>, mutex: Data<Mutex<AppState>>) -> H
                 match info_result {
                     Ok(user) => {
                         let result =
-                            create_and_insert_user(user.discord_id, body.roblox_id, &data.database)
+                            create_and_insert_user(user.discord_id, body.user_id, &data.database)
                                 .await;
 
                         match result {
@@ -208,6 +201,6 @@ async fn check_code(body: Json<CodePostBody>, mutex: Data<Mutex<AppState>>) -> H
 
 pub fn configure_verify(cfg: &mut ServiceConfig) {
     cfg.service(get_discord_user);
-    cfg.service(get_code);
-    cfg.service(check_code);
+    cfg.service(put_user);
+    cfg.service(check_user);
 }
