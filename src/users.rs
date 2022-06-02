@@ -1,3 +1,4 @@
+use reqwest::Response;
 use std::sync::Mutex;
 use tokio::join;
 
@@ -43,6 +44,24 @@ pub struct User {
     pub goal_points: Option<u64>,
     #[serde(default)]
     pub rank: Ranks,
+    pub divisions: Option<Divisions>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct DeserializeUser {
+    #[serde(default)]
+    pub user_id: u64,
+    pub name: String,
+    #[serde(default)]
+    pub points: u64,
+    #[serde(default)]
+    pub events: u64,
+    #[serde(default)]
+    pub floor_points: Option<u64>,
+    #[serde(default)]
+    pub goal_points: Option<u64>,
+    #[serde(default)]
+    pub rank: String,
     pub divisions: Option<Divisions>,
 }
 
@@ -228,6 +247,29 @@ async fn create_user_from_id(roblox_id: u64) -> Option<User> {
     None
 }
 
+async fn get_real_user_from_deserialize(response: Response) -> Result<User, reqwest::Error> {
+    let d_user = response.json::<DeserializeUser>().await?;
+
+    let rank_enum_option = Ranks::inverse_to_string(d_user.rank);
+    let rank_enum = match rank_enum_option {
+        Some(r) => r,
+        None => Ranks::Enlisted,
+    };
+
+    let real_user = User {
+        user_id: d_user.user_id,
+        name: d_user.name,
+        points: d_user.points,
+        events: d_user.events,
+        floor_points: d_user.floor_points,
+        goal_points: d_user.goal_points,
+        rank: rank_enum,
+        divisions: d_user.divisions,
+    };
+
+    Ok(real_user)
+}
+
 #[get("users/{user_id}")]
 async fn get_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
     let data = mutex.lock().unwrap();
@@ -242,7 +284,7 @@ async fn get_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpResponse
         Ok(update_response) => {
             let status_code = update_response.status();
             if status_code == 200 {
-                let json_result = update_response.json::<User>().await;
+                let json_result = get_real_user_from_deserialize(update_response).await;
 
                 match json_result {
                     Ok(response) => return HttpResponse::Ok().json(response),
@@ -291,7 +333,7 @@ async fn add_points(
 
     match user_result {
         Ok(response) => {
-            let mut user = response.json::<User>().await.unwrap();
+            let mut user = get_real_user_from_deserialize(response).await.unwrap();
             user.points += body.points_to_add;
 
             if !should_promote(&user) {

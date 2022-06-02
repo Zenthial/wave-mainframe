@@ -150,6 +150,30 @@ impl Ranks {
             Ranks::Enlisted => None,
         }
     }
+
+    pub fn inverse_to_string(str: String) -> Option<Ranks> {
+        match str.as_ref() {
+            "Chairman" => Some(Ranks::Chairman),
+            "Marshal" => Some(Ranks::Marshal),
+            "Colonel" => Some(Ranks::Colonel),
+            "Captain" => Some(Ranks::Captain),
+            "Lieutenant" => Some(Ranks::Lieutenant),
+            "Ensign" => Some(Ranks::Ensign),
+            "Sergeant Major of the Alliance" => Some(Ranks::SergeantMajorOfTheAlliance),
+            "Staff Sergeant" => Some(Ranks::StaffSergeant),
+            "Tech Sergeant" => Some(Ranks::TechSergeant),
+            "Veteran" => Some(Ranks::Veteran),
+            "Corporal" => Some(Ranks::Corporal),
+            "Lance Corporal" => Some(Ranks::LanceCorporal),
+            "Sentinel" => Some(Ranks::Sentinel),
+            "Fleetman" => Some(Ranks::Fleetman),
+            "Specialist" => Some(Ranks::Specialist),
+            "Operative" => Some(Ranks::Operative),
+            "Trooper" => Some(Ranks::Trooper),
+            "Enlisted" => Some(Ranks::Enlisted),
+            _ => None,
+        }
+    }
 }
 
 impl ToString for Ranks {
