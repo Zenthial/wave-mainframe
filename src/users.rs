@@ -4,7 +4,9 @@ use tokio::join;
 
 use crate::{
     api_down_queue,
-    promotion::{demote, get_required_points, promote, should_demote, should_promote},
+    promotion::{
+        demote, get_required_points, log_to_discord, promote, should_demote, should_promote,
+    },
     ranks::{Ranks, STRanks, SableRanks},
     roblox::{get_rank_in_group, get_user_info_from_id, UsernameResponse},
     AppState,
@@ -210,7 +212,7 @@ async fn create_user_from_id(roblox_id: u64) -> Option<User> {
 
     let user_info: UsernameResponse = match user_info_result {
         Ok(info) => info,
-        Err(e) => panic!("{}", e.to_string()),
+        Err(_) => return None,
     };
 
     let (rank, st_rank, sable_rank) = ranks;
@@ -368,6 +370,8 @@ async fn get_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpResponse
 #[derive(Deserialize)]
 struct PointsBody {
     points_to_add: u64,
+    #[serde(default)]
+    event: bool,
 }
 
 #[post("users/{user_id}")]
@@ -385,31 +389,64 @@ async fn add_points(
 
     match user_result {
         Ok(response) => {
-            let mut user = get_real_user_from_deserialize(response, &data.database)
-                .await
-                .unwrap();
-            user.points += body.points_to_add;
+            let json_result = get_real_user_from_deserialize(response, &data.database).await;
 
-            if !should_promote(&user) {
-                if should_demote(&user) {
-                    let success = demote(&mut user, &mut data.roblox_user).await;
-                    if !success {
-                        api_down_queue::add_demote(&data.database, &user).await;
+            match json_result {
+                Ok(mut user) => {
+                    if body.event {
+                        user.events += 1;
+                    }
+                    user.points += body.points_to_add;
+                    log_to_discord(format!(
+                        "Adding {} bP to {} - {}",
+                        body.points_to_add, user.user_id, user.name
+                    ))
+                    .await;
+
+                    if !should_promote(&user) {
+                        if should_demote(&user) {
+                            let success = demote(&mut user, &mut data.roblox_user).await;
+                            if !success {
+                                api_down_queue::add_demote(&data.database, &user).await;
+                            }
+                        }
+                    } else {
+                        let success = promote(&mut user, &mut data.roblox_user).await;
+                        if !success {
+                            api_down_queue::add_promote(&data.database, &user).await;
+                        }
+                    }
+
+                    let update_result = data
+                        .database
+                        .update(format!("users/{}", user_id).as_str(), &user)
+                        .await;
+
+                    return parse_user_result(update_result).await;
+                }
+                Err(_) => {
+                    let possible_user = create_user_from_id(user_id).await;
+
+                    match possible_user {
+                        Some(mut user) => {
+                            if body.event {
+                                user.events += 1;
+                            }
+                            user.points += body.points_to_add;
+                            log_to_discord(format!(
+                                "Adding {} bP to {} - {}",
+                                body.points_to_add, user.user_id, user.name
+                            ))
+                            .await;
+                            let put_response =
+                                put_user(user.user_id, user.clone(), &data.database).await;
+
+                            parse_user_result(put_response).await
+                        }
+                        None => HttpResponse::BadRequest().body("User is not in WIJ"),
                     }
                 }
-            } else {
-                let success = promote(&mut user, &mut data.roblox_user).await;
-                if !success {
-                    api_down_queue::add_promote(&data.database, &user).await;
-                }
             }
-
-            let update_result = data
-                .database
-                .update(format!("users/{}", user_id).as_str(), &user)
-                .await;
-
-            return parse_user_result(update_result).await;
         }
         Err(e) => return HttpResponse::InternalServerError().body(e.message),
     }

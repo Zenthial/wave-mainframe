@@ -88,7 +88,7 @@ pub async fn promote(user: &mut User, roblox_account: &mut RobloxAccount) -> boo
 
     match result {
         Ok(b) => {
-            log_to_discord(format!("promoted user {}-{}", user.user_id, user.name)).await;
+            log_to_discord(format!("Promoted user {}-{}", user.user_id, user.name)).await;
             return b;
         }
         Err(e) => {
@@ -117,7 +117,7 @@ pub async fn demote(user: &mut User, roblox_account: &mut RobloxAccount) -> bool
 
     match result {
         Ok(b) => {
-            log_to_discord(format!("demoted user {}-{}", user.user_id, user.name)).await;
+            log_to_discord(format!("Demoted user {}-{}", user.user_id, user.name)).await;
             return b;
         }
         Err(e) => {
