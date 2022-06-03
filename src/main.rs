@@ -48,7 +48,7 @@ async fn main() -> Result<()> {
 
     start_verify_jobs(job_database.clone());
     start_api_jobs(job_database.clone(), job_user);
-    start_group_jobs(job_database);
+    start_group_jobs(job_database, user.clone());
 
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 

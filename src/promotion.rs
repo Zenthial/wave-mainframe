@@ -1,5 +1,8 @@
 use crate::{ranks::Ranks, roblox::RobloxAccount, users::User};
+use reqwest::Client;
+use serde::Serialize;
 
+static WEBHOOK_URL: &'static str = "https://discord.com/api/webhooks/662771092292632627/Rzk9gbQTEaN6EoEhv2VHgxJihRJ4t-9PQAoSOkhoZP_fbTs8dQjHp9AfZxOENjy8uQZo";
 static WIJ_ID: u64 = 3747606;
 
 pub fn get_required_points(rank: Ranks) -> Option<u64> {
@@ -16,6 +19,21 @@ pub fn get_required_points(rank: Ranks) -> Option<u64> {
         Ranks::Enlisted => Some(0),
         _ => None,
     }
+}
+
+#[derive(Serialize, Debug)]
+struct WebhookBody {
+    content: String,
+}
+
+async fn log_to_discord(message: String) {
+    let client = Client::new();
+
+    let _response = client
+        .post(WEBHOOK_URL)
+        .json(&WebhookBody { content: message })
+        .send()
+        .await;
 }
 
 pub fn should_promote(user: &User) -> bool {
@@ -65,10 +83,13 @@ pub async fn promote(user: &mut User, roblox_account: &mut RobloxAccount) -> boo
 
     match result {
         Ok(b) => {
-            println!("promoted user {}-{}", user.user_id, user.name);
+            log_to_discord(format!("promoted user {}-{}", user.user_id, user.name)).await;
             return b;
         }
-        Err(e) => panic!("{}", e.to_string()),
+        Err(e) => {
+            log_to_discord(format!("ERROR: {}", e.to_string())).await;
+            panic!("{}", e.to_string());
+        }
     }
 }
 
@@ -91,9 +112,12 @@ pub async fn demote(user: &mut User, roblox_account: &mut RobloxAccount) -> bool
 
     match result {
         Ok(b) => {
-            println!("demoted user {}-{}", user.user_id, user.name);
+            log_to_discord(format!("demoted user {}-{}", user.user_id, user.name)).await;
             return b;
         }
-        Err(e) => panic!("{}", e.to_string()),
+        Err(e) => {
+            log_to_discord(format!("ERROR: {}", e.to_string())).await;
+            panic!("{}", e.to_string());
+        }
     }
 }

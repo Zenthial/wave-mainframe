@@ -254,7 +254,7 @@ async fn create_user_from_id(roblox_id: u64) -> Option<User> {
     None
 }
 
-async fn reconcile_user(user: &mut User) {
+async fn reconcile_user(user: &mut User, database: &Database) {
     let (ranks, user_info) = join!(get_ranks(user.user_id), get_user_info_from_id(user.user_id));
     let (rank, st_rank, sable_rank) = ranks;
 
@@ -273,22 +273,29 @@ async fn reconcile_user(user: &mut User) {
         };
 
         let required_points = get_required_points(rank_enum.clone());
+        println!("{:?} {:?}", goal_points, required_points);
 
         if required_points.is_some() && user.points < required_points.unwrap() {
             user.points = required_points.unwrap();
-            user.floor_points = required_points;
-            user.goal_points = goal_points;
         }
 
+        user.floor_points = required_points;
+        user.goal_points = goal_points;
+        user.rank = rank_enum;
         user.divisions = divisions;
 
         if user_info.is_ok() {
             user.name = user_info.unwrap().name;
         }
+
+        let _create_result = put_user(user.user_id, user.clone(), database).await;
     }
 }
 
-async fn get_real_user_from_deserialize(response: Response) -> Result<User, reqwest::Error> {
+async fn get_real_user_from_deserialize(
+    response: Response,
+    database: &Database,
+) -> Result<User, reqwest::Error> {
     let d_user = response.json::<DeserializeUser>().await?;
 
     let rank_enum_option = Ranks::inverse_to_string(d_user.rank);
@@ -308,8 +315,9 @@ async fn get_real_user_from_deserialize(response: Response) -> Result<User, reqw
         divisions: d_user.divisions,
     };
 
-    reconcile_user(&mut real_user).await;
+    reconcile_user(&mut real_user, database).await;
 
+    println!("{:?}", real_user);
     Ok(real_user)
 }
 
@@ -327,7 +335,8 @@ async fn get_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpResponse
         Ok(update_response) => {
             let status_code = update_response.status();
             if status_code == 200 {
-                let json_result = get_real_user_from_deserialize(update_response).await;
+                let json_result =
+                    get_real_user_from_deserialize(update_response, &data.database).await;
 
                 match json_result {
                     Ok(response) => return HttpResponse::Ok().json(response),
@@ -376,7 +385,9 @@ async fn add_points(
 
     match user_result {
         Ok(response) => {
-            let mut user = get_real_user_from_deserialize(response).await.unwrap();
+            let mut user = get_real_user_from_deserialize(response, &data.database)
+                .await
+                .unwrap();
             user.points += body.points_to_add;
 
             if !should_promote(&user) {

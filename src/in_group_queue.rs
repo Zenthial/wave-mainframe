@@ -1,5 +1,7 @@
-use crate::roblox::get_rank_in_group;
+use crate::promotion::promote;
+use crate::roblox::RobloxAccount;
 use crate::users::User;
+use crate::{promotion::should_promote, roblox::get_rank_in_group};
 use firebase_realtime_database::Database;
 use std::{
     collections::{HashMap, LinkedList},
@@ -31,7 +33,17 @@ async fn initialize_queue(database: &Database) -> Option<LinkedList<User>> {
     None
 }
 
-async fn queue_handler(database: &Database, queue: &mut LinkedList<User>) -> bool {
+async fn promotion_checker(user: &mut User, roblox_account: &mut RobloxAccount) {
+    if should_promote(user) {
+        promote(user, roblox_account).await;
+    }
+}
+
+async fn queue_handler(
+    database: &Database,
+    queue: &mut LinkedList<User>,
+    roblox_account: &mut RobloxAccount,
+) -> bool {
     for _ in 0..QUEUE_POP_NUM {
         if !queue.is_empty() {
             let user_result = queue.pop_front();
@@ -40,7 +52,7 @@ async fn queue_handler(database: &Database, queue: &mut LinkedList<User>) -> boo
                 continue;
             }
 
-            let user = user_result.unwrap();
+            let mut user = user_result.unwrap();
 
             let main_rank_result = get_rank_in_group(WIJ_ID, user.user_id).await;
             if main_rank_result.is_err() {
@@ -56,6 +68,8 @@ async fn queue_handler(database: &Database, queue: &mut LinkedList<User>) -> boo
                 if database_response.is_err() {
                     println!("{:?}", database_response);
                 }
+            } else {
+                promotion_checker(&mut user, roblox_account).await;
             }
         } else {
             return false;
@@ -65,15 +79,15 @@ async fn queue_handler(database: &Database, queue: &mut LinkedList<User>) -> boo
     return true;
 }
 
-pub fn start_queue_jobs(database: Database) {
+pub fn start_queue_jobs(database: Database, mut roblox_account: RobloxAccount) {
     task::spawn(async move {
         let queue_result = initialize_queue(&database).await;
 
         if queue_result.is_some() {
             let mut queue: LinkedList<User> = queue_result.unwrap();
             loop {
-                if queue_handler(&database, &mut queue).await == false {
-                    start_queue_jobs(database);
+                if queue_handler(&database, &mut queue, &mut roblox_account).await == false {
+                    start_queue_jobs(database, roblox_account);
                     break;
                 }
                 thread::sleep(Duration::from_millis(THREAD_DELAY));
