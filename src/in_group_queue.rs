@@ -1,7 +1,7 @@
-use crate::promotion::promote;
+use crate::promotion::{demote, log_to_discord, promote, should_demote, should_promote};
 use crate::roblox::RobloxAccount;
-use crate::users::User;
-use crate::{promotion::should_promote, roblox::get_rank_in_group};
+use crate::users::{reconcile_user, User};
+use crate::{api_down_queue, roblox::get_rank_in_group};
 use firebase_realtime_database::Database;
 use std::{
     collections::{HashMap, LinkedList},
@@ -11,7 +11,7 @@ use std::{
 use tokio::task;
 
 static WIJ_ID: u64 = 3747606;
-static THREAD_DELAY: u64 = 60000;
+static THREAD_DELAY: u64 = 30000;
 static QUEUE_POP_NUM: u64 = 6;
 
 async fn initialize_queue(database: &Database) -> Option<LinkedList<User>> {
@@ -33,9 +33,23 @@ async fn initialize_queue(database: &Database) -> Option<LinkedList<User>> {
     None
 }
 
-async fn promotion_checker(user: &mut User, roblox_account: &mut RobloxAccount) {
-    if should_promote(user) {
-        promote(user, roblox_account).await;
+async fn promotion_checker(
+    user: &mut User,
+    database: &Database,
+    roblox_account: &mut RobloxAccount,
+) {
+    if !should_promote(&user) {
+        if should_demote(&user) {
+            let success = demote(user, roblox_account).await;
+            if !success {
+                api_down_queue::add_demote(database, user).await;
+            }
+        }
+    } else {
+        let success = promote(user, roblox_account).await;
+        if !success {
+            api_down_queue::add_promote(database, user).await;
+        }
     }
 }
 
@@ -67,9 +81,12 @@ async fn queue_handler(
 
                 if database_response.is_err() {
                     println!("{:?}", database_response);
+                } else {
+                    log_to_discord(format!("deleted {}", user.user_id)).await;
                 }
             } else {
-                promotion_checker(&mut user, roblox_account).await;
+                promotion_checker(&mut user, database, roblox_account).await;
+                reconcile_user(&mut user, database).await;
             }
         } else {
             return false;

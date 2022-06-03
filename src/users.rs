@@ -254,7 +254,7 @@ async fn create_user_from_id(roblox_id: u64) -> Option<User> {
     None
 }
 
-async fn reconcile_user(user: &mut User, database: &Database) {
+pub async fn reconcile_user(user: &mut User, database: &Database) {
     let (ranks, user_info) = join!(get_ranks(user.user_id), get_user_info_from_id(user.user_id));
     let (rank, st_rank, sable_rank) = ranks;
 
