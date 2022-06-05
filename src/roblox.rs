@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use reqwest;
 use serde::{Deserialize, Serialize};
 
-use crate::ranks::Ranks;
+use crate::definitions::ranks::Ranks;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

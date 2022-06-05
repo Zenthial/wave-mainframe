@@ -1,7 +1,10 @@
-use crate::promotion::{demote, log_to_discord, promote, should_demote, should_promote};
+use super::api_down_queue;
+use crate::definitions::users_definitions::User;
+use crate::functions::promotion::{demote, promote, should_demote, should_promote};
+use crate::functions::users_functions::reconcile_user;
+use crate::logs::{log_error, log_to_discord};
+use crate::roblox::get_rank_in_group;
 use crate::roblox::RobloxAccount;
-use crate::users::{reconcile_user, User};
-use crate::{api_down_queue, roblox::get_rank_in_group};
 use firebase_realtime_database::Database;
 use std::{
     collections::{HashMap, LinkedList},
@@ -58,6 +61,7 @@ async fn queue_handler(
     queue: &mut LinkedList<User>,
     roblox_account: &mut RobloxAccount,
 ) -> bool {
+    println!("queue_handler, {}", queue.len());
     for _ in 0..QUEUE_POP_NUM {
         if !queue.is_empty() {
             let user_result = queue.pop_front();
@@ -67,6 +71,7 @@ async fn queue_handler(
             }
 
             let mut user = user_result.unwrap();
+            log_error(format!("checking user: {} - {:?}", user.name, user)).await;
 
             let main_rank_result = get_rank_in_group(WIJ_ID, user.user_id).await;
             if main_rank_result.is_err() {
@@ -103,6 +108,7 @@ pub fn start_queue_jobs(database: Database, mut roblox_account: RobloxAccount) {
         if queue_result.is_some() {
             let mut queue: LinkedList<User> = queue_result.unwrap();
             loop {
+                println!("loop checking");
                 if queue_handler(&database, &mut queue, &mut roblox_account).await == false {
                     start_queue_jobs(database, roblox_account);
                     break;

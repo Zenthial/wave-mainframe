@@ -1,8 +1,9 @@
-use std::{fs::File, io::Read};
-
-use crate::{ranks::Ranks, roblox::RobloxAccount, users::User};
-use reqwest::Client;
-use serde::Serialize;
+use crate::{
+    definitions::ranks::Ranks,
+    definitions::users_definitions::User,
+    logs::{log_error, log_to_discord},
+    roblox::RobloxAccount,
+};
 
 static WIJ_ID: u64 = 3747606;
 
@@ -20,25 +21,6 @@ pub fn get_required_points(rank: Ranks) -> Option<u64> {
         Ranks::Enlisted => Some(0),
         _ => None,
     }
-}
-
-#[derive(Serialize, Debug)]
-struct WebhookBody {
-    content: String,
-}
-
-pub async fn log_to_discord(message: String) {
-    let mut webhook_file = File::open("webhook.txt").expect("file to be able to open");
-    let mut webhook = String::new();
-    webhook_file.read_to_string(&mut webhook).unwrap();
-
-    let client = Client::new();
-
-    let _response = client
-        .post(webhook)
-        .json(&WebhookBody { content: message })
-        .send()
-        .await;
 }
 
 pub fn should_promote(user: &User) -> bool {
@@ -92,7 +74,7 @@ pub async fn promote(user: &mut User, roblox_account: &mut RobloxAccount) -> boo
             return b;
         }
         Err(e) => {
-            log_to_discord(format!("ERROR: {}", e.to_string())).await;
+            log_error(format!("ERROR: {}", e.to_string())).await;
             panic!("{}", e.to_string());
         }
     }
@@ -121,7 +103,7 @@ pub async fn demote(user: &mut User, roblox_account: &mut RobloxAccount) -> bool
             return b;
         }
         Err(e) => {
-            log_to_discord(format!("ERROR: {}", e.to_string())).await;
+            log_error(format!("ERROR: {}", e.to_string())).await;
             panic!("{}", e.to_string());
         }
     }

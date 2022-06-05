@@ -3,12 +3,13 @@ use std::sync::Mutex;
 use tokio::join;
 
 use crate::{
-    api_down_queue,
-    promotion::{
-        demote, get_required_points, log_to_discord, promote, should_demote, should_promote,
-    },
-    ranks::{Ranks, STRanks, SableRanks},
-    roblox::{get_rank_in_group, get_user_info_from_id, UsernameResponse},
+    definitions::users_definitions::{Divisions, User},
+    definitions::{ranks::Ranks, users_definitions::DeserializeUser},
+    functions::promotion::{demote, get_required_points, promote, should_demote, should_promote},
+    functions::users_functions::{get_ranks, put_user, reconcile_user},
+    jobs::api_down_queue,
+    logs::log_to_discord,
+    roblox::{get_user_info_from_id, UsernameResponse},
     AppState,
 };
 use actix_web::{
@@ -17,55 +18,7 @@ use actix_web::{
     HttpResponse,
 };
 use firebase_realtime_database::{Database, FirebaseError};
-use serde::{Deserialize, Serialize};
-
-static WIJ_ID: u64 = 3747606;
-static ST_ID: u64 = 3758883;
-static SABLE_ID: u64 = 5430057;
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct Divisions {
-    #[serde(default)]
-    pub st: Option<STRanks>,
-    #[serde(default)]
-    pub sable: Option<SableRanks>,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct User {
-    #[serde(default)]
-    pub user_id: u64,
-    pub name: String,
-    #[serde(default)]
-    pub points: u64,
-    #[serde(default)]
-    pub events: u64,
-    #[serde(default)]
-    pub floor_points: Option<u64>,
-    #[serde(default)]
-    pub goal_points: Option<u64>,
-    #[serde(default)]
-    pub rank: Ranks,
-    pub divisions: Option<Divisions>,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct DeserializeUser {
-    #[serde(default)]
-    pub user_id: u64,
-    pub name: String,
-    #[serde(default)]
-    pub points: u64,
-    #[serde(default)]
-    pub events: u64,
-    #[serde(default)]
-    pub floor_points: Option<u64>,
-    #[serde(default)]
-    pub goal_points: Option<u64>,
-    #[serde(default)]
-    pub rank: String,
-    pub divisions: Option<Divisions>,
-}
+use serde::Deserialize;
 
 async fn parse_user_result(result: Result<reqwest::Response, FirebaseError>) -> HttpResponse {
     match result {
@@ -130,16 +83,6 @@ async fn delete_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpRespo
     }
 }
 
-pub async fn put_user(
-    user_id: u64,
-    database_user: User,
-    database: &Database,
-) -> Result<reqwest::Response, FirebaseError> {
-    database
-        .put(format!("users/{}", user_id).as_str(), &database_user)
-        .await
-}
-
 #[put("users/{user_id}")]
 async fn create_user(
     path: Path<u64>,
@@ -169,42 +112,6 @@ async fn update_user(
         .await;
 
     parse_user_result(update_result).await
-}
-
-fn parse_rank(rank_result: Result<Option<u64>, reqwest::Error>) -> Option<u64> {
-    match rank_result {
-        Ok(rank) => rank,
-        Err(e) => panic!("{}", e.to_string()),
-    }
-}
-
-async fn get_ranks(roblox_id: u64) -> (Option<Ranks>, Option<STRanks>, Option<SableRanks>) {
-    let (main_group_result, st_result, sable_result) = join!(
-        get_rank_in_group(WIJ_ID, roblox_id),
-        get_rank_in_group(ST_ID, roblox_id),
-        get_rank_in_group(SABLE_ID, roblox_id)
-    );
-
-    let main_group_rank = parse_rank(main_group_result);
-    let st_rank_option = parse_rank(st_result);
-    let sable_rank_option = parse_rank(sable_result);
-
-    let rank = match main_group_rank {
-        Some(rank) => Ranks::from_value(rank),
-        None => None,
-    };
-
-    let st_rank = match st_rank_option {
-        Some(rank) => STRanks::from_value(rank),
-        None => None,
-    };
-
-    let sable_rank = match sable_rank_option {
-        Some(rank) => SableRanks::from_value(rank),
-        None => None,
-    };
-
-    (rank, st_rank, sable_rank)
 }
 
 async fn create_user_from_id(roblox_id: u64) -> Option<User> {
@@ -254,44 +161,6 @@ async fn create_user_from_id(roblox_id: u64) -> Option<User> {
     }
 
     None
-}
-
-pub async fn reconcile_user(user: &mut User, database: &Database) {
-    let (ranks, user_info) = join!(get_ranks(user.user_id), get_user_info_from_id(user.user_id));
-    let (rank, st_rank, sable_rank) = ranks;
-
-    if let Some(rank_enum) = rank {
-        let mut divisions = None;
-        if st_rank.is_some() || sable_rank.is_some() {
-            divisions = Some(Divisions {
-                st: st_rank,
-                sable: sable_rank,
-            });
-        }
-
-        let goal_points = match rank_enum.get_next() {
-            Some(rank) => get_required_points(rank),
-            None => None,
-        };
-
-        let required_points = get_required_points(rank_enum.clone());
-        println!("{:?} {:?}", goal_points, required_points);
-
-        if required_points.is_some() && user.points < required_points.unwrap() {
-            user.points = required_points.unwrap();
-        }
-
-        user.floor_points = required_points;
-        user.goal_points = goal_points;
-        user.rank = rank_enum;
-        user.divisions = divisions;
-
-        if user_info.is_ok() {
-            user.name = user_info.unwrap().name;
-        }
-
-        let _create_result = put_user(user.user_id, user.clone(), database).await;
-    }
 }
 
 async fn get_real_user_from_deserialize(

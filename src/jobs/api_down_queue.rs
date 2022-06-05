@@ -1,6 +1,9 @@
 use firebase_realtime_database::Database;
 
-use crate::{promotion::demote, promotion::promote, roblox::RobloxAccount, users::User};
+use crate::{
+    definitions::users_definitions::User, functions::promotion::demote,
+    functions::promotion::promote, roblox::RobloxAccount,
+};
 use std::{collections::HashMap, thread, time::Duration};
 use tokio::task;
 

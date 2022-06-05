@@ -1,18 +1,19 @@
-mod api_down_queue;
-mod in_group_queue;
-mod promotion;
-mod ranks;
+mod definitions;
+mod functions;
+mod jobs;
+mod logs;
 mod roblox;
 mod users;
 mod verify;
-mod verify_key_cleanup;
 
 use actix_web::middleware::Logger;
 use actix_web::{get, web, App, HttpServer};
-use api_down_queue::start_queue_jobs as start_api_jobs;
 use env_logger::Env;
 use firebase_realtime_database::{create_database, get_oauth_token, Database};
-use in_group_queue::start_queue_jobs as start_group_jobs;
+use jobs::{
+    api_down_queue::start_queue_jobs as start_api_jobs,
+    in_group_queue::start_queue_jobs as start_group_jobs, verify_key_cleanup::start_verify_jobs,
+};
 use roblox::RobloxAccount;
 use std::{
     fs::File,
@@ -21,7 +22,6 @@ use std::{
 };
 use users::configure_users;
 use verify::configure_verify;
-use verify_key_cleanup::start_verify_jobs;
 
 // This struct represents state
 struct AppState {

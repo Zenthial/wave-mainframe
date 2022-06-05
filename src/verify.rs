@@ -8,7 +8,7 @@ use actix_web::{
 use firebase_realtime_database::{Database, FirebaseError};
 use serde::{Deserialize, Serialize};
 
-use crate::AppState;
+use crate::{logs::log_error, AppState};
 
 #[derive(Deserialize, Serialize, Debug)]
 struct User {
@@ -61,11 +61,13 @@ async fn parse_user_result(result: Result<reqwest::Response, FirebaseError>) -> 
                     }
                 }
             } else {
+                log_error(format!("Database returned status code {}", status_code)).await;
                 return HttpResponse::InternalServerError()
                     .body(format!("Database returned status code {}", status_code));
             }
         }
         Err(e) => {
+            log_error(format!("ERROR: {}", e.message)).await;
             return HttpResponse::InternalServerError().body(e.message);
         }
     }
@@ -115,7 +117,7 @@ async fn put_user(body: Json<Body>, mutex: Data<Mutex<AppState>>) -> HttpRespons
             HttpResponse::Ok().body(format!("temporarily linked {} to {}", discord_id, username))
         }
         Err(e) => {
-            println!("error: {:?}", e);
+            log_error(format!("error: {:?}", e)).await;
             HttpResponse::InternalServerError().json(e.message)
         }
     }
