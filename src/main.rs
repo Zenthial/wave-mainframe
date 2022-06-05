@@ -57,7 +57,6 @@ async fn main() -> Result<()> {
             .configure(configure_routes)
     })
     .bind(("127.0.0.1", 8080))?
-    .workers(4)
     .run()
     .await
 }

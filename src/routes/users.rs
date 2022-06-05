@@ -243,7 +243,7 @@ struct PointsBody {
     event: bool,
 }
 
-#[post("users/{user_id}")]
+#[post("users/add/{user_id}")]
 async fn add_points(
     path: Path<u64>,
     body: Json<PointsBody>,
@@ -321,10 +321,70 @@ async fn add_points(
     }
 }
 
+#[derive(Deserialize)]
+struct RemoveBody {
+    points_to_remove: u64,
+}
+
+#[post("users/remove/{user_id}")]
+async fn remove_points(
+    path: Path<u64>,
+    body: Json<RemoveBody>,
+    mutex: Data<Mutex<AppState>>,
+) -> HttpResponse {
+    let mut data = mutex.lock().unwrap();
+    let user_id = path.into_inner();
+    let user_result = data
+        .database
+        .get(format!("users/{}", user_id).as_str())
+        .await;
+
+    match user_result {
+        Ok(response) => {
+            let json_result = get_real_user_from_deserialize(response, &data.database).await;
+
+            match json_result {
+                Ok(mut user) => {
+                    user.points -= body.points_to_remove;
+                    log_to_discord(format!(
+                        "Removing {} bP from {} - {}",
+                        body.points_to_remove, user.user_id, user.name
+                    ))
+                    .await;
+
+                    if !should_promote(&user) {
+                        if should_demote(&user) {
+                            let success = demote(&mut user, &mut data.roblox_user).await;
+                            if !success {
+                                api_down_queue::add_demote(&data.database, &user).await;
+                            }
+                        }
+                    } else {
+                        let success = promote(&mut user, &mut data.roblox_user).await;
+                        if !success {
+                            api_down_queue::add_promote(&data.database, &user).await;
+                        }
+                    }
+
+                    let update_result = data
+                        .database
+                        .update(format!("users/{}", user_id).as_str(), &user)
+                        .await;
+
+                    return parse_user_result(update_result).await;
+                }
+                Err(_) => HttpResponse::BadRequest().body("User does not have a profile"),
+            }
+        }
+        Err(e) => return HttpResponse::InternalServerError().body(e.message),
+    }
+}
+
 pub fn configure_users(cfg: &mut web::ServiceConfig) {
     cfg.service(get_user);
     cfg.service(update_user);
     cfg.service(create_user);
     cfg.service(delete_user);
     cfg.service(add_points);
+    cfg.service(remove_points);
 }
