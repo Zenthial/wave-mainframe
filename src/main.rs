@@ -3,8 +3,7 @@ mod functions;
 mod jobs;
 mod logs;
 mod roblox;
-mod users;
-mod verify;
+mod routes;
 
 use actix_web::middleware::Logger;
 use actix_web::{get, web, App, HttpServer};
@@ -12,13 +11,12 @@ use env_logger::Env;
 use firebase_realtime_database::{create_database, get_oauth_token, Database};
 use jobs::start_jobs;
 use roblox::RobloxAccount;
+use routes::configure_routes;
 use std::{
     fs::File,
     io::{Read, Result},
     sync::Mutex,
 };
-use users::configure_users;
-use verify::configure_verify;
 
 // This struct represents state
 struct AppState {
@@ -56,8 +54,7 @@ async fn main() -> Result<()> {
                 roblox_user: user.clone(),
             })))
             .service(index)
-            .configure(configure_users)
-            .configure(configure_verify)
+            .configure(configure_routes)
     })
     .bind(("127.0.0.1", 8080))?
     .workers(4)

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Mutex, time::SystemTime};
+use std::{sync::Mutex, time::SystemTime};
 
 use actix_web::{
     get, post, put,
@@ -8,7 +8,7 @@ use actix_web::{
 use firebase_realtime_database::{Database, FirebaseError};
 use serde::{Deserialize, Serialize};
 
-use crate::{logs::log_error, AppState};
+use crate::{functions::verify_functions::VerificationCodeBody, logs::log_error, AppState};
 
 #[derive(Deserialize, Serialize, Debug)]
 struct User {
@@ -16,32 +16,9 @@ struct User {
     roblox_id: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct VerificationCodeBody {
-    pub discord_id: String,
-    pub creation_time: SystemTime,
-}
-
 #[derive(Deserialize, Serialize)]
 struct CodeReturnBody {
     code: String,
-}
-
-pub async fn get_verification_map(
-    database: &Database,
-) -> Option<HashMap<String, VerificationCodeBody>> {
-    let awaiting_result = database.get("verification/awaiting/").await;
-
-    if let Ok(response) = awaiting_result {
-        let user_map_option = response
-            .json::<Option<HashMap<String, VerificationCodeBody>>>()
-            .await
-            .unwrap();
-
-        return user_map_option;
-    }
-
-    None
 }
 
 async fn parse_user_result(result: Result<reqwest::Response, FirebaseError>) -> HttpResponse {
