@@ -4,10 +4,7 @@ use crate::{
     definitions::users_definitions::User, functions::promotion::demote,
     functions::promotion::promote, roblox::RobloxAccount,
 };
-use std::{collections::HashMap, thread, time::Duration};
-use tokio::task;
-
-static THREAD_DELAY: u64 = 30000;
+use std::collections::HashMap;
 
 pub async fn add_promote(database: &Database, user: &User) {
     let result = database.post("queue/promote", &user).await;
@@ -77,13 +74,4 @@ pub async fn queue_handler(database: &Database, roblox_account: &mut RobloxAccou
             }
         }
     }
-}
-
-pub fn start_queue_jobs(database: Database, mut user: RobloxAccount) {
-    task::spawn(async move {
-        loop {
-            queue_handler(&database, &mut user).await;
-            thread::sleep(Duration::from_millis(THREAD_DELAY));
-        }
-    });
 }

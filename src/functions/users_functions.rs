@@ -72,7 +72,6 @@ pub async fn reconcile_user(user: &mut User, database: &Database) {
         };
 
         let required_points = get_required_points(rank_enum.clone());
-        println!("{:?} {:?}", goal_points, required_points);
 
         if required_points.is_some() && user.points < required_points.unwrap() {
             user.points = required_points.unwrap();

@@ -71,7 +71,6 @@ async fn queue_handler(
             }
 
             let mut user = user_result.unwrap();
-            log_error(format!("checking user: {} - {:?}", user.name, user)).await;
 
             let main_rank_result = get_rank_in_group(WIJ_ID, user.user_id).await;
             if main_rank_result.is_err() {
@@ -87,11 +86,12 @@ async fn queue_handler(
                 if database_response.is_err() {
                     println!("{:?}", database_response);
                 } else {
-                    log_to_discord(format!("deleted {}", user.user_id)).await;
+                    log_error(format!("**deleted** user: {} - {:?}", user.name, user)).await;
                 }
             } else {
-                promotion_checker(&mut user, database, roblox_account).await;
                 reconcile_user(&mut user, database).await;
+                log_error(format!("checking user: {} - {:?}", user.name, user)).await;
+                promotion_checker(&mut user, database, roblox_account).await;
             }
         } else {
             return false;
@@ -101,7 +101,10 @@ async fn queue_handler(
     return true;
 }
 
+pub async fn queue_job(database: Database, mut roblox_account: RobloxAccount) {}
+
 pub fn start_queue_jobs(database: Database, mut roblox_account: RobloxAccount) {
+    println!("Starting queue jobs");
     task::spawn(async move {
         let queue_result = initialize_queue(&database).await;
 
@@ -117,4 +120,5 @@ pub fn start_queue_jobs(database: Database, mut roblox_account: RobloxAccount) {
             }
         }
     });
+    println!("started queue jobs");
 }

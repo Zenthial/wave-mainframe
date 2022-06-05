@@ -10,7 +10,7 @@ static WIJ_ID: u64 = 3747606;
 pub fn get_required_points(rank: Ranks) -> Option<u64> {
     match rank {
         Ranks::StaffSergeant => Some(900),
-        Ranks::TechSergeant => Some(625),
+        Ranks::TechSergeant => Some(600),
         Ranks::Corporal => Some(325),
         Ranks::LanceCorporal => Some(270),
         Ranks::Sentinel => Some(190),
@@ -70,7 +70,12 @@ pub async fn promote(user: &mut User, roblox_account: &mut RobloxAccount) -> boo
 
     match result {
         Ok(b) => {
-            log_to_discord(format!("Promoted user {}-{}", user.user_id, user.name)).await;
+            log_to_discord(format!("Promoted user {} - {}", user.user_id, user.name)).await;
+            log_error(format!(
+                "**Promoted** user {} - {}",
+                user.user_id, user.name
+            ))
+            .await;
             return b;
         }
         Err(e) => {
@@ -100,6 +105,7 @@ pub async fn demote(user: &mut User, roblox_account: &mut RobloxAccount) -> bool
     match result {
         Ok(b) => {
             log_to_discord(format!("Demoted user {}-{}", user.user_id, user.name)).await;
+            log_error(format!("**Demoted** user {} - {}", user.user_id, user.name)).await;
             return b;
         }
         Err(e) => {

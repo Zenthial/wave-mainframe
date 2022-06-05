@@ -10,10 +10,7 @@ use actix_web::middleware::Logger;
 use actix_web::{get, web, App, HttpServer};
 use env_logger::Env;
 use firebase_realtime_database::{create_database, get_oauth_token, Database};
-use jobs::{
-    api_down_queue::start_queue_jobs as start_api_jobs,
-    in_group_queue::start_queue_jobs as start_group_jobs, verify_key_cleanup::start_verify_jobs,
-};
+use jobs::start_jobs;
 use roblox::RobloxAccount;
 use std::{
     fs::File,
@@ -46,9 +43,7 @@ async fn main() -> Result<()> {
     let token = get_oauth_token("firebase-key.json").await.unwrap();
     let job_database = create_database("wave-mainframe-default-rtdb", token.as_str());
 
-    start_verify_jobs(job_database.clone());
-    start_api_jobs(job_database.clone(), job_user);
-    start_group_jobs(job_database, user.clone());
+    start_jobs(job_database, job_user);
 
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 
@@ -65,6 +60,7 @@ async fn main() -> Result<()> {
             .configure(configure_verify)
     })
     .bind(("127.0.0.1", 8080))?
+    .workers(4)
     .run()
     .await
 }

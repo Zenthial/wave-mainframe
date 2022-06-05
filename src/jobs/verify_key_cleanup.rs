@@ -1,17 +1,12 @@
-use std::{
-    thread,
-    time::{Duration, SystemTime},
-};
+use std::time::{Duration, SystemTime};
 
 use firebase_realtime_database::Database;
-use tokio::task;
 
 use crate::verify::get_verification_map;
 
-static THREAD_DELAY: u64 = 30000; // 30 sec
 static CLEANUP_TIMEOUT: u64 = 60000 * 5; // five minutes
 
-async fn key_cleanup(database: &Database) {
+pub async fn key_cleanup(database: &Database) {
     let user_map_option = get_verification_map(database).await;
 
     if let Some(user_map) = user_map_option {
@@ -32,13 +27,4 @@ async fn key_cleanup(database: &Database) {
             }
         }
     }
-}
-
-pub fn start_verify_jobs(database: Database) {
-    task::spawn(async move {
-        loop {
-            key_cleanup(&database).await;
-            thread::sleep(Duration::from_millis(THREAD_DELAY));
-        }
-    });
 }
