@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use reqwest;
 use serde::{Deserialize, Serialize};
 
-use crate::definitions::ranks::Ranks;
+use crate::{definitions::ranks::Ranks, logs::log_error};
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -120,27 +120,30 @@ impl RobloxAccount {
             .send()
             .await;
 
-        let response = match response_result {
-            Ok(res) => res,
-            Err(e) => panic!("{:?}", e),
+        match response_result {
+            Ok(response) => {
+                let headers = response.headers();
+                if headers.contains_key("x-csrf-token")
+                    || headers.contains_key("x-csrf-token".to_uppercase())
+                {
+                    let token = headers
+                        .get("x-csrf-token")
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_string();
+
+                    self.token = token.clone();
+                    return Some(token);
+                } else {
+                    return None;
+                }
+            }
+            Err(e) => {
+                log_error(format!("ERROR: {}", e.to_string())).await;
+                return None;
+            }
         };
-
-        let headers = response.headers();
-        if headers.contains_key("x-csrf-token")
-            || headers.contains_key("x-csrf-token".to_uppercase())
-        {
-            let token = headers
-                .get("x-csrf-token")
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string();
-
-            self.token = token.clone();
-            return Some(token);
-        } else {
-            return None;
-        }
     }
 
     fn add_header(&mut self, header_name: &str, header_value: &str) {
@@ -167,7 +170,13 @@ impl RobloxAccount {
             let potential_csrf_token = self.get_current_token().await;
             match potential_csrf_token {
                 Some(t) => token = t,
-                None => panic!("Failed to retrieve xCRSF token, is the roblox API down?"),
+                None => {
+                    log_error(
+                        "Failed to retrieve xCRSF token, is the roblox API down?".to_string(),
+                    )
+                    .await;
+                    return Ok(false);
+                }
             }
         }
 

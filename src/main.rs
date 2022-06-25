@@ -15,7 +15,7 @@ use routes::configure_routes;
 use std::{
     fs::File,
     io::{Read, Result},
-    sync::Mutex,
+    sync::RwLock,
 };
 
 // This struct represents state
@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
         App::new()
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
-            .app_data(web::Data::new(Mutex::new(AppState {
+            .app_data(web::Data::new(RwLock::new(AppState {
                 database: create_database("wave-mainframe-default-rtdb", token.as_str()),
                 roblox_user: user.clone(),
             })))

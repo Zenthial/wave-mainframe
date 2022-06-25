@@ -80,7 +80,7 @@ pub async fn promote(user: &mut User, roblox_account: &mut RobloxAccount) -> boo
         }
         Err(e) => {
             log_error(format!("ERROR: {}", e.to_string())).await;
-            panic!("{}", e.to_string());
+            return false;
         }
     }
 }
@@ -110,7 +110,7 @@ pub async fn demote(user: &mut User, roblox_account: &mut RobloxAccount) -> bool
         }
         Err(e) => {
             log_error(format!("ERROR: {}", e.to_string())).await;
-            panic!("{}", e.to_string());
+            return false;
         }
     }
 }

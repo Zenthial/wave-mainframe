@@ -2,7 +2,7 @@ use std::time::{Duration, SystemTime};
 
 use firebase_realtime_database::Database;
 
-use crate::functions::verify_functions::get_verification_map;
+use crate::{functions::verify_functions::get_verification_map, logs::log_error};
 
 static CLEANUP_TIMEOUT: u64 = 60000 * 5; // five minutes
 
@@ -20,7 +20,7 @@ pub async fn key_cleanup(database: &Database) {
                     .await;
 
                 if let Err(e) = delete_response {
-                    panic!("{:?}", e);
+                    log_error(format!("{:?}", e)).await;
                 } else if let Ok(_) = delete_response {
                     println!("deleted code for user {}", user.discord_id);
                 }

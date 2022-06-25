@@ -20,7 +20,9 @@ pub async fn put_user(
 fn parse_rank(rank_result: Result<Option<u64>, reqwest::Error>) -> Option<u64> {
     match rank_result {
         Ok(rank) => rank,
-        Err(e) => panic!("{}", e.to_string()),
+        Err(_) => {
+            return None;
+        }
     }
 }
 

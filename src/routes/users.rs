@@ -1,5 +1,5 @@
 use reqwest::Response;
-use std::sync::Mutex;
+use std::sync::RwLock;
 use tokio::join;
 
 use crate::{
@@ -48,8 +48,8 @@ async fn parse_user_result(result: Result<reqwest::Response, FirebaseError>) -> 
 }
 
 #[delete("users/{user_id}")]
-async fn delete_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
-    let data = mutex.lock().unwrap();
+async fn delete_user(path: Path<u64>, rw_lock: Data<RwLock<AppState>>) -> HttpResponse {
+    let data = rw_lock.read().unwrap();
 
     let user_id = path.into_inner();
     let delete_result = data
@@ -87,9 +87,9 @@ async fn delete_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpRespo
 async fn create_user(
     path: Path<u64>,
     user: Json<User>,
-    mutex: Data<Mutex<AppState>>,
+    rw_lock: Data<RwLock<AppState>>,
 ) -> HttpResponse {
-    let data = mutex.lock().unwrap();
+    let data = rw_lock.read().unwrap();
 
     let user_id = path.into_inner();
     let create_result = put_user(user_id, user.into_inner(), &data.database).await;
@@ -101,9 +101,9 @@ async fn create_user(
 async fn update_user(
     path: Path<u64>,
     user: Json<User>,
-    mutex: Data<Mutex<AppState>>,
+    rw_lock: Data<RwLock<AppState>>,
 ) -> HttpResponse {
-    let data = mutex.lock().unwrap();
+    let data = rw_lock.read().unwrap();
 
     let user_id = path.into_inner();
     let update_result = data
@@ -193,8 +193,8 @@ async fn get_real_user_from_deserialize(
 }
 
 #[get("users/{user_id}")]
-async fn get_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
-    let data = mutex.lock().unwrap();
+async fn get_user(path: Path<u64>, rw_lock: Data<RwLock<AppState>>) -> HttpResponse {
+    let data = rw_lock.read().unwrap();
 
     let user_id = path.into_inner();
     let user_result = data
@@ -247,9 +247,9 @@ struct PointsBody {
 async fn add_points(
     path: Path<u64>,
     body: Json<PointsBody>,
-    mutex: Data<Mutex<AppState>>,
+    rw_lock: Data<RwLock<AppState>>,
 ) -> HttpResponse {
-    let mut data = mutex.lock().unwrap();
+    let mut data = rw_lock.write().unwrap();
     let user_id = path.into_inner();
     let user_result = data
         .database
@@ -330,9 +330,9 @@ struct RemoveBody {
 async fn remove_points(
     path: Path<u64>,
     body: Json<RemoveBody>,
-    mutex: Data<Mutex<AppState>>,
+    rw_lock: Data<RwLock<AppState>>,
 ) -> HttpResponse {
-    let mut data = mutex.lock().unwrap();
+    let mut data = rw_lock.write().unwrap();
     let user_id = path.into_inner();
     let user_result = data
         .database

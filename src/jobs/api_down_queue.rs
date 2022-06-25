@@ -2,7 +2,7 @@ use firebase_realtime_database::Database;
 
 use crate::{
     definitions::users_definitions::User, functions::promotion::demote,
-    functions::promotion::promote, roblox::RobloxAccount,
+    functions::promotion::promote, logs::log_error, roblox::RobloxAccount,
 };
 use std::collections::HashMap;
 
@@ -12,10 +12,10 @@ pub async fn add_promote(database: &Database, user: &User) {
         Ok(response) => {
             let status = response.status();
             if status == 400 || status == 401 || status == 404 || status == 500 || status == 503 {
-                panic!("{}", response.text().await.unwrap());
+                log_error(format!("{}", response.text().await.unwrap())).await;
             }
         }
-        Err(e) => panic!("{}", e.message),
+        Err(e) => log_error(format!("{}", e.message)).await,
     }
 }
 
@@ -25,10 +25,10 @@ pub async fn add_demote(database: &Database, user: &User) {
         Ok(response) => {
             let status = response.status();
             if status == 400 || status == 401 || status == 404 || status == 500 || status == 503 {
-                panic!("{}", response.text().await.unwrap());
+                log_error(format!("{}", response.text().await.unwrap())).await;
             }
         }
-        Err(e) => panic!("{}", e.message),
+        Err(e) => log_error(format!("{}", e.message)).await,
     }
 }
 

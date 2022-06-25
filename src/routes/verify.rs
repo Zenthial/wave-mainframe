@@ -1,4 +1,4 @@
-use std::{sync::Mutex, time::SystemTime};
+use std::{sync::RwLock, time::SystemTime};
 
 use actix_web::{
     get, post, put,
@@ -52,8 +52,8 @@ async fn parse_user_result(result: Result<reqwest::Response, FirebaseError>) -> 
 
 // the user_id here is a discord userid, not a roblox user id
 #[get("verify/discord/{user_id}")]
-async fn get_discord_user(path: Path<u64>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
-    let data = mutex.lock().unwrap();
+async fn get_discord_user(path: Path<u64>, rw_lock: Data<RwLock<AppState>>) -> HttpResponse {
+    let data = rw_lock.read().unwrap();
 
     let user_id = path.into_inner();
     let user_result = data
@@ -71,8 +71,8 @@ struct Body {
 }
 
 #[put("verify/")]
-async fn put_user(body: Json<Body>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
-    let data = mutex.lock().unwrap();
+async fn put_user(body: Json<Body>, rw_lock: Data<RwLock<AppState>>) -> HttpResponse {
+    let data = rw_lock.read().unwrap();
 
     let discord_id = &body.discord_id;
     let username = &body.username;
@@ -125,8 +125,8 @@ struct CodePostBody {
 }
 
 #[post("verify/")]
-async fn check_user(body: Json<CodePostBody>, mutex: Data<Mutex<AppState>>) -> HttpResponse {
-    let data = mutex.lock().unwrap();
+async fn check_user(body: Json<CodePostBody>, rw_lock: Data<RwLock<AppState>>) -> HttpResponse {
+    let data = rw_lock.read().unwrap();
 
     let code_response = data
         .database
