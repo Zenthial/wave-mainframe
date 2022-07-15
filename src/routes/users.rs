@@ -1,12 +1,16 @@
 use std::collections::HashMap;
 
+use log::info;
 use reqwest::Response;
 use serde::Deserialize;
 
 use crate::{
     definitions::users_definitions::User,
     definitions::{ranks::Ranks, users_definitions::DeserializeUser},
-    functions::{promotion::check_promotion, users_functions::reconcile_user},
+    functions::{
+        promotion::check_promotion,
+        users_functions::{self, reconcile_user},
+    },
     logs::{log_error, log_to_discord},
     roblox::get_user_ids_from_usernames,
     AppState,
@@ -86,7 +90,7 @@ async fn get_user_struct(user_id: u32, database: &Database) -> Option<User> {
 }
 
 #[get("users/{user_id}")]
-async fn new_get_user(path: Path<u32>, app_state: Data<AppState>) -> HttpResponse {
+async fn get_user(path: Path<u32>, app_state: Data<AppState>) -> HttpResponse {
     let database = &app_state.database;
 
     let user_id = path.into_inner();
@@ -94,7 +98,21 @@ async fn new_get_user(path: Path<u32>, app_state: Data<AppState>) -> HttpRespons
 
     match user_option {
         Some(user) => return HttpResponse::Ok().json(user),
-        None => return HttpResponse::BadRequest().body(format!("No user found for {}", user_id)),
+        None => {
+            let attempted_created_user = users_functions::create_user_from_id(user_id).await;
+            info!("{:?}", attempted_created_user);
+            if attempted_created_user.is_none() {
+                return HttpResponse::BadRequest().body(format!("No user found for {}", user_id));
+            }
+
+            let user = attempted_created_user.unwrap();
+            info!("{:?}", user);
+            let _create_result = database
+                .put(format!("users/{}", user_id).as_str(), &user)
+                .await;
+
+            return HttpResponse::Ok().json(user);
+        }
     }
 }
 
@@ -149,8 +167,8 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
         if user_id_option.is_none() {
             continue;
         }
-        let user_id = user_id_option.unwrap();
 
+        let user_id = user_id_option.unwrap();
         let user_option = get_user_struct(user_id, database).await;
         if user_option.is_some() {
             let mut user_struct = user_option.unwrap();
@@ -162,7 +180,7 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
                 user_struct.events += 1;
             }
 
-            user_struct.points += points as u64;
+            user_struct.points += points as u32;
 
             log_to_discord(format!(
                 "Adding {} bP to {} - {}",
@@ -193,7 +211,7 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
 }
 
 pub fn configure_users(cfg: &mut web::ServiceConfig) {
-    cfg.service(new_get_user);
+    cfg.service(get_user);
     cfg.service(create_user);
     cfg.service(increment_points);
 }

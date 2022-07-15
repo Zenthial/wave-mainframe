@@ -7,14 +7,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{definitions::ranks::Ranks, logs::log_error};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct UsernameResponse {
     description: String,
     created: String,
     is_banned: bool,
-    external_app_display_name: String,
-    pub id: u64,
+    external_app_display_name: Option<String>,
+    pub id: u32,
     pub name: String,
     pub display_name: String,
 }
@@ -22,17 +22,17 @@ pub struct UsernameResponse {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupInfo {
-    id: u64,
+    id: u32,
     name: String,
-    member_count: u64,
+    member_count: u32,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RoleInfo {
-    id: u64,
+    id: u32,
     name: String,
-    rank: u64,
+    rank: u32,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -47,7 +47,7 @@ pub struct GroupResponse {
     data: Option<Vec<UserGroupInfo>>,
 }
 
-pub async fn get_user_info_from_id(user_id: u64) -> Result<UsernameResponse, reqwest::Error> {
+pub async fn get_user_info_from_id(user_id: u32) -> Result<UsernameResponse, reqwest::Error> {
     let response = reqwest::get(format!("https://users.roblox.com/v1/users/{}", user_id)).await?;
     let username_response = response.json::<UsernameResponse>().await?;
 
@@ -107,7 +107,7 @@ pub async fn get_user_ids_from_usernames(
     Ok(user_id_response_hash_map)
 }
 
-pub async fn get_rank_in_group(group_id: u64, user_id: u64) -> Result<Option<u64>, reqwest::Error> {
+pub async fn get_rank_in_group(group_id: u32, user_id: u32) -> Result<Option<u32>, reqwest::Error> {
     let response = reqwest::get(format!(
         "https://groups.roblox.com/v2/users/{}/groups/roles",
         user_id
@@ -214,8 +214,8 @@ impl RobloxAccount {
 
     pub async fn set_rank(
         &mut self,
-        user_id: u64,
-        group_id: u64,
+        user_id: u32,
+        group_id: u32,
         rank: Ranks,
     ) -> Result<bool, reqwest::Error> {
         let mut token = self.token.clone();

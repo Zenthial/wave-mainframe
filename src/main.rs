@@ -1,5 +1,6 @@
 mod definitions;
 mod functions;
+mod jobs;
 mod logs;
 mod roblox;
 mod routes;
@@ -36,11 +37,14 @@ async fn main() -> Result<()> {
     let user = roblox::create_user(cookie, true).await;
 
     let token = get_oauth_token("firebase-key.json").await.unwrap();
+    let job_db = create_database("wave-mainframe-default-rtdb", token.as_str());
 
     env_logger::builder()
         .target(env_logger::Target::Stdout)
         .parse_env(Env::default().default_filter_or("info"))
         .init();
+
+    jobs::start_jobs(job_db);
 
     HttpServer::new(move || {
         App::new()

@@ -5,9 +5,9 @@ use crate::{
     roblox::RobloxAccount,
 };
 
-static WIJ_ID: u64 = 3747606;
+static WIJ_ID: u32 = 3747606;
 
-pub fn get_required_points(rank: Ranks) -> Option<u64> {
+pub fn get_required_points(rank: Ranks) -> Option<u32> {
     match rank {
         Ranks::StaffSergeant => Some(900),
         Ranks::TechSergeant => Some(600),

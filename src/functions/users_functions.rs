@@ -1,5 +1,6 @@
 use crate::roblox::{get_user_info_from_id, UsernameResponse};
 use firebase_realtime_database::Database;
+use log::info;
 use tokio::join;
 
 use crate::definitions::ranks::{Ranks, STRanks, SableRanks};
@@ -7,7 +8,7 @@ use crate::definitions::users_definitions::{Divisions, User, SABLE_ID, ST_ID, WI
 use crate::functions::promotion::get_required_points;
 use crate::roblox::get_rank_in_group;
 
-fn parse_rank(rank_result: Result<Option<u64>, reqwest::Error>) -> Option<u64> {
+fn parse_rank(rank_result: Result<Option<u32>, reqwest::Error>) -> Option<u32> {
     match rank_result {
         Ok(rank) => rank,
         Err(_) => {
@@ -16,8 +17,9 @@ fn parse_rank(rank_result: Result<Option<u64>, reqwest::Error>) -> Option<u64> {
     }
 }
 
-pub async fn _create_user_from_id(roblox_id: u64) -> Option<User> {
+pub async fn create_user_from_id(roblox_id: u32) -> Option<User> {
     let (user_info_result, ranks) = join!(get_user_info_from_id(roblox_id), get_ranks(roblox_id),);
+    info!("{:?} {:?}", user_info_result, ranks);
 
     let user_info: UsernameResponse = match user_info_result {
         Ok(info) => info,
@@ -65,7 +67,7 @@ pub async fn _create_user_from_id(roblox_id: u64) -> Option<User> {
     None
 }
 
-pub async fn get_ranks(roblox_id: u64) -> (Option<Ranks>, Option<STRanks>, Option<SableRanks>) {
+pub async fn get_ranks(roblox_id: u32) -> (Option<Ranks>, Option<STRanks>, Option<SableRanks>) {
     let (main_group_result, st_result, sable_result) = join!(
         get_rank_in_group(WIJ_ID, roblox_id),
         get_rank_in_group(ST_ID, roblox_id),

@@ -35,7 +35,7 @@ impl Default for Ranks {
 }
 
 impl Ranks {
-    pub fn from_value(value: u64) -> Option<Ranks> {
+    pub fn from_value(value: u32) -> Option<Ranks> {
         match value {
             255 => Some(Ranks::Chairman),
             254 => Some(Ranks::Marshal),
@@ -240,7 +240,7 @@ impl ToString for STRanks {
 }
 
 impl STRanks {
-    pub fn from_value(value: u64) -> Option<Self> {
+    pub fn from_value(value: u32) -> Option<Self> {
         match value {
             255 => Some(Self::Chairman),
             245 => Some(Self::Marshal),
@@ -284,7 +284,7 @@ impl ToString for SableRanks {
 }
 
 impl SableRanks {
-    pub fn from_value(value: u64) -> Option<Self> {
+    pub fn from_value(value: u32) -> Option<Self> {
         match value {
             255 => Some(SableRanks::Chairman),
             254 => Some(SableRanks::Marshal),

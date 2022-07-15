@@ -36,7 +36,11 @@ async fn request_verification(body: Json<Verification>, app_state: Data<AppState
 
     let verification_create_result = database
         .put(
-            format!("verification/awaiting/{}", body.roblox_username).as_str(),
+            format!(
+                "verification/awaiting/{}",
+                body.roblox_username.to_lowercase()
+            )
+            .as_str(),
             &verification_body,
         )
         .await;
@@ -64,7 +68,7 @@ async fn check_verification(
     let database = &app_state.database;
 
     let verification_option = get_verification_body::<VerificationBody>(
-        format!("verification/awaiting/{}", body.username).as_str(),
+        format!("verification/awaiting/{}", body.username.to_lowercase()).as_str(),
         database,
     )
     .await;

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::time::SystemTime;
 
 use firebase_realtime_database::Database;
@@ -7,6 +8,23 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 pub struct VerificationBody {
     pub discord_id: String,
     pub creation_time: SystemTime,
+}
+
+pub async fn get_verification_map(
+    database: &Database,
+) -> Option<HashMap<String, VerificationBody>> {
+    let awaiting_result = database.get("verification/awaiting/").await;
+
+    if let Ok(response) = awaiting_result {
+        let user_map_option = response
+            .json::<Option<HashMap<String, VerificationBody>>>()
+            .await
+            .unwrap();
+
+        return user_map_option;
+    }
+
+    None
 }
 
 pub async fn get_verification_body<T: DeserializeOwned>(
