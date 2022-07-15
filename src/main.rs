@@ -1,6 +1,5 @@
 mod definitions;
 mod functions;
-mod jobs;
 mod logs;
 mod roblox;
 mod routes;
@@ -9,7 +8,6 @@ use actix_web::middleware::Logger;
 use actix_web::{get, web, App, HttpServer};
 use env_logger::Env;
 use firebase_realtime_database::{create_database, get_oauth_token, Database};
-use jobs::start_jobs;
 use roblox::RobloxAccount;
 use routes::configure_routes;
 use std::{
@@ -36,12 +34,8 @@ async fn main() -> Result<()> {
     cookie_file.read_to_string(&mut cookie).unwrap();
 
     let user = roblox::create_user(cookie, true).await;
-    let job_user = user.clone();
 
     let token = get_oauth_token("firebase-key.json").await.unwrap();
-    let job_database = create_database("wave-mainframe-default-rtdb", token.as_str());
-
-    start_jobs(job_database, job_user);
 
     env_logger::init_from_env(Env::default().default_filter_or("info"));
 

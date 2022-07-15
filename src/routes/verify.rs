@@ -1,185 +1,110 @@
-use std::{sync::RwLock, time::SystemTime};
+use std::time::SystemTime;
 
 use actix_web::{
     get, post, put,
     web::{Data, Json, Path, ServiceConfig},
     HttpResponse,
 };
-use firebase_realtime_database::{Database, FirebaseError};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
-use crate::{functions::verify_functions::VerificationCodeBody, logs::log_error, AppState};
+use crate::{
+    functions::verify_functions::{
+        get_verification_body, is_verified, VerificationBody, VerifiedStruct,
+    },
+    AppState,
+};
 
-#[derive(Deserialize, Serialize, Debug)]
-struct User {
+#[derive(Deserialize)]
+struct Verification {
     discord_id: String,
-    roblox_id: u64,
+    roblox_username: String,
 }
 
-#[derive(Deserialize, Serialize)]
-struct CodeReturnBody {
-    code: String,
-}
-
-async fn parse_user_result(result: Result<reqwest::Response, FirebaseError>) -> HttpResponse {
-    match result {
-        Ok(update_response) => {
-            let status_code = update_response.status();
-            if status_code == 200 {
-                let json_result = update_response.json::<User>().await;
-
-                match json_result {
-                    Ok(response) => return HttpResponse::Ok().json(response),
-                    Err(_) => {
-                        return HttpResponse::Ok().json(User {
-                            discord_id: "0".into(),
-                            roblox_id: 0,
-                        })
-                    }
-                }
-            } else {
-                log_error(format!("Database returned status code {}", status_code)).await;
-                return HttpResponse::InternalServerError()
-                    .body(format!("Database returned status code {}", status_code));
-            }
-        }
-        Err(e) => {
-            log_error(format!("ERROR: {}", e.message)).await;
-            return HttpResponse::InternalServerError().body(e.message);
-        }
-    }
-}
-
-// the user_id here is a discord userid, not a roblox user id
-#[get("verify/discord/{user_id}")]
-async fn get_discord_user(path: Path<u64>, rw_lock: Data<RwLock<AppState>>) -> HttpResponse {
-    let data = rw_lock.read().unwrap();
-
-    let user_id = path.into_inner();
-    let user_result = data
-        .database
-        .get(format!("verification/discord/{}", user_id).as_str())
-        .await;
-
-    parse_user_result(user_result).await
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-struct Body {
-    discord_id: String,
-    username: String,
-}
-
+/// Places a discord user in the verify/awaiting section
+/// Discord user provides their roblox username
+/// Roblox user joins the game then and the two are linked together
 #[put("verify/")]
-async fn put_user(body: Json<Body>, rw_lock: Data<RwLock<AppState>>) -> HttpResponse {
-    let data = rw_lock.read().unwrap();
+async fn request_verification(body: Json<Verification>, app_state: Data<AppState>) -> HttpResponse {
+    let database = &app_state.database;
 
-    let discord_id = &body.discord_id;
-    let username = &body.username;
+    let verification_body = VerificationBody {
+        discord_id: body.discord_id.clone(),
+        creation_time: SystemTime::now(),
+    };
 
-    let put_result = data
-        .database
+    let verification_create_result = database
         .put(
-            format!("verification/awaiting/{}", username).as_str(),
-            &VerificationCodeBody {
-                discord_id: discord_id.to_string(),
-                creation_time: SystemTime::now(),
-            },
+            format!("verify/awaiting/{}", body.roblox_username).as_str(),
+            &verification_body,
         )
         .await;
 
-    match put_result {
-        Ok(response) => {
-            println!("response: {:?}", response);
-            HttpResponse::Ok().body(format!("temporarily linked {} to {}", discord_id, username))
-        }
-        Err(e) => {
-            log_error(format!("error: {:?}", e)).await;
-            HttpResponse::InternalServerError().json(e.message)
-        }
+    match verification_create_result {
+        Ok(response) => HttpResponse::Ok().body(response.text().await.unwrap()),
+        Err(e) => HttpResponse::InternalServerError().body(e.message),
     }
-}
-
-pub async fn create_and_insert_user(
-    discord_id: String,
-    roblox_id: u64,
-    database: &Database,
-) -> Result<reqwest::Response, FirebaseError> {
-    let user_result = database
-        .put(
-            format!("verification/discord/{}", discord_id).as_str(),
-            &User {
-                discord_id,
-                roblox_id,
-            },
-        )
-        .await;
-
-    user_result
 }
 
 #[derive(Deserialize)]
-struct CodePostBody {
+struct RobloxVerification {
     username: String,
-    user_id: u64,
+    user_id: u32,
 }
 
+/// Checks to see if a user who joined the roblox game is looking to be verified
+/// If they are, they are moved from the awaiting to the verified section
+/// Their roblox userid is logged
 #[post("verify/")]
-async fn check_user(body: Json<CodePostBody>, rw_lock: Data<RwLock<AppState>>) -> HttpResponse {
-    let data = rw_lock.read().unwrap();
+async fn check_verification(
+    body: Json<RobloxVerification>,
+    app_state: Data<AppState>,
+) -> HttpResponse {
+    let database = &app_state.database;
 
-    let code_response = data
-        .database
-        .get(format!("verification/awaiting/{}", body.username).as_str())
+    let verification_option = get_verification_body::<VerificationBody>(
+        format!("verify/awaiting/{}", body.username).as_str(),
+        database,
+    )
+    .await;
+    if verification_option.is_none() {
+        return HttpResponse::InternalServerError()
+            .body("Firebase failed to read verification database");
+    }
+
+    let verification_body = verification_option.unwrap();
+    let verified_struct = VerifiedStruct {
+        roblox_user_id: body.user_id,
+        discord_id: verification_body.discord_id.clone(),
+    };
+    let _put_result = database
+        .put(
+            format!("verify/verified/{}", verification_body.discord_id).as_str(),
+            &verified_struct,
+        )
         .await;
 
-    let res = match code_response {
-        Ok(response) => {
-            let text_result = response.text().await;
+    HttpResponse::Ok().body("yo")
+}
 
-            match text_result {
-                Ok(text) => Ok(text),
-                Err(e) => Err(e.to_string()),
-            }
-        }
-        Err(e) => Err(e.message),
-    };
+/// Verification checker
+/// Gets the verification struct from the discord userid
+#[get("verify/{discord_id}")]
+async fn get_verification(path: Path<String>, app_state: Data<AppState>) -> HttpResponse {
+    let discord_user_id = path.into_inner();
+    let database = &app_state.database;
 
-    match res {
-        Ok(text) => {
-            if text == "null" {
-                HttpResponse::NotFound().body("null")
-            } else {
-                let info_result = serde_json::from_str::<VerificationCodeBody>(&text);
-                match info_result {
-                    Ok(user) => {
-                        let result =
-                            create_and_insert_user(user.discord_id, body.user_id, &data.database)
-                                .await;
-
-                        match result {
-                            Ok(response) => {
-                                let verification_user = response.json::<User>().await;
-                                match verification_user {
-                                    Ok(user) => HttpResponse::Ok().json(&user),
-                                    Err(e) => {
-                                        HttpResponse::InternalServerError().body(e.to_string())
-                                    }
-                                }
-                            }
-                            Err(e) => HttpResponse::InternalServerError().body(e.message),
-                        }
-                    }
-                    Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-                }
-            }
-        }
-        Err(e) => HttpResponse::InternalServerError().body(e),
+    let verification_option = is_verified(discord_user_id, database).await;
+    if verification_option.is_none() {
+        return HttpResponse::InternalServerError()
+            .body("Firebase failed to read verification database");
     }
+
+    let verified_struct = verification_option.unwrap();
+    HttpResponse::Ok().json(verified_struct)
 }
 
 pub fn configure_verify(cfg: &mut ServiceConfig) {
-    cfg.service(get_discord_user);
-    cfg.service(put_user);
-    cfg.service(check_user);
+    cfg.service(request_verification);
+    cfg.service(check_verification);
+    cfg.service(get_verification);
 }

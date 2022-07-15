@@ -1,9 +1,6 @@
-use firebase_realtime_database::Database;
-
 use crate::{
     definitions::ranks::Ranks,
     definitions::users_definitions::User,
-    jobs::api_down_queue,
     logs::{log_error, log_to_discord},
     roblox::RobloxAccount,
 };
@@ -118,18 +115,10 @@ pub async fn demote(user: &mut User, roblox_account: &mut RobloxAccount) -> bool
     }
 }
 
-pub async fn check_promotion(
-    user: &mut User,
-    database: &Database,
-    roblox_account: &mut RobloxAccount,
-) {
+pub async fn check_promotion(user: &mut User, roblox_account: &mut RobloxAccount) {
     if should_promote(user) {
-        if promote(user, roblox_account).await == false {
-            api_down_queue::add_promote(database, user).await;
-        }
+        promote(user, roblox_account).await;
     } else if should_demote(user) {
-        if demote(user, roblox_account).await == false {
-            api_down_queue::add_demote(database, user).await;
-        }
+        demote(user, roblox_account).await;
     }
 }

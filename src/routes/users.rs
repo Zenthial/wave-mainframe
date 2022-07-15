@@ -137,7 +137,7 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
                 )
                 .await;
 
-            check_promotion(&mut user_struct, database, &mut roblox_user).await;
+            check_promotion(&mut user_struct, &mut roblox_user).await;
         }
     }
 
