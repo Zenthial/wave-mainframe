@@ -5,6 +5,7 @@ use actix_web::{
     web::{Data, Json, Path, ServiceConfig},
     HttpResponse,
 };
+use log::info;
 use serde::Deserialize;
 
 use crate::{
@@ -14,7 +15,7 @@ use crate::{
     AppState,
 };
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct Verification {
     discord_id: String,
     roblox_username: String,
@@ -23,8 +24,9 @@ struct Verification {
 /// Places a discord user in the verify/awaiting section
 /// Discord user provides their roblox username
 /// Roblox user joins the game then and the two are linked together
-#[put("verify/")]
+#[put("verify")]
 async fn request_verification(body: Json<Verification>, app_state: Data<AppState>) -> HttpResponse {
+    info!("{:?}", body);
     let database = &app_state.database;
 
     let verification_body = VerificationBody {
@@ -54,7 +56,7 @@ struct RobloxVerification {
 /// Checks to see if a user who joined the roblox game is looking to be verified
 /// If they are, they are moved from the awaiting to the verified section
 /// Their roblox userid is logged
-#[post("verify/")]
+#[post("verify")]
 async fn check_verification(
     body: Json<RobloxVerification>,
     app_state: Data<AppState>,
