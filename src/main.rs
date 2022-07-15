@@ -21,7 +21,7 @@ use std::{
 // This struct represents state
 struct AppState {
     database: Database,
-    roblox_user: RobloxAccount,
+    roblox_user: RwLock<RobloxAccount>,
 }
 
 #[get("/")]
@@ -49,10 +49,10 @@ async fn main() -> Result<()> {
         App::new()
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
-            .app_data(web::Data::new(RwLock::new(AppState {
+            .app_data(web::Data::new(AppState {
                 database: create_database("wave-mainframe-default-rtdb", token.as_str()),
-                roblox_user: user.clone(),
-            })))
+                roblox_user: RwLock::new(user.clone()),
+            }))
             .service(index)
             .configure(configure_routes)
     })

@@ -1,6 +1,9 @@
+use firebase_realtime_database::Database;
+
 use crate::{
     definitions::ranks::Ranks,
     definitions::users_definitions::User,
+    jobs::api_down_queue,
     logs::{log_error, log_to_discord},
     roblox::RobloxAccount,
 };
@@ -65,7 +68,7 @@ pub async fn promote(user: &mut User, roblox_account: &mut RobloxAccount) -> boo
     user.rank = next_rank;
 
     let result = roblox_account
-        .set_rank(user.user_id.try_into().unwrap(), WIJ_ID, user.rank.clone())
+        .set_rank(user.user_id, WIJ_ID, user.rank.clone())
         .await;
 
     match result {
@@ -99,7 +102,7 @@ pub async fn demote(user: &mut User, roblox_account: &mut RobloxAccount) -> bool
     user.rank = prev_rank;
 
     let result = roblox_account
-        .set_rank(user.user_id.try_into().unwrap(), WIJ_ID, user.rank.clone())
+        .set_rank(user.user_id, WIJ_ID, user.rank.clone())
         .await;
 
     match result {
@@ -111,6 +114,22 @@ pub async fn demote(user: &mut User, roblox_account: &mut RobloxAccount) -> bool
         Err(e) => {
             log_error(format!("ERROR: {}", e.to_string())).await;
             return false;
+        }
+    }
+}
+
+pub async fn check_promotion(
+    user: &mut User,
+    database: &Database,
+    roblox_account: &mut RobloxAccount,
+) {
+    if should_promote(user) {
+        if promote(user, roblox_account).await == false {
+            api_down_queue::add_promote(database, user).await;
+        }
+    } else if should_demote(user) {
+        if demote(user, roblox_account).await == false {
+            api_down_queue::add_demote(database, user).await;
         }
     }
 }

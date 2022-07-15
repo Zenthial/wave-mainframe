@@ -89,7 +89,7 @@ pub struct SetRankBody {
     role_id: u32,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RobloxAccount {
     cookie: String,
     headers: HashMap<String, String>,
