@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use reqwest::Response;
 use serde::Deserialize;
 
@@ -5,7 +7,8 @@ use crate::{
     definitions::users_definitions::User,
     definitions::{ranks::Ranks, users_definitions::DeserializeUser},
     functions::{promotion::check_promotion, users_functions::reconcile_user},
-    logs::log_error,
+    logs::{log_error, log_to_discord},
+    roblox::get_user_ids_from_usernames,
     AppState,
 };
 use actix_web::{
@@ -95,18 +98,19 @@ async fn new_get_user(path: Path<u32>, app_state: Data<AppState>) -> HttpRespons
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct PointUser {
-    user_id: u32,
+    username: String,
     increment: i32,
+    add_event: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct PointsStruct {
     users: Vec<PointUser>,
 }
 
-#[post("users/")]
+#[post("users/points")]
 async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -> HttpResponse {
     let database = &app_state.database;
     let roblox_user_result = app_state.roblox_user.write();
@@ -116,19 +120,55 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
         log_error(format!("Poison error in RwLock: {}", err.to_string())).await;
         return HttpResponse::InternalServerError().body("Internal poison error");
     }
+    if body.users.len() == 0 {
+        return HttpResponse::InternalServerError().body("Must supply 1 user");
+    }
+
+    let users: HashMap<String, &PointUser> = body
+        .users
+        .iter()
+        .map(|user| (user.username.to_owned(), user))
+        .collect();
+
+    let usernames_vector: Vec<String> = users
+        .iter()
+        .map(|(_, user)| user.username.clone())
+        .collect();
+
+    let user_id_option = get_user_ids_from_usernames(usernames_vector).await;
+    if user_id_option.is_err() {
+        return HttpResponse::InternalServerError().body("Roblox failed to return user ids");
+    }
+
+    let mut succeed_vec: Vec<(String, u32, i32)> = vec![];
     let mut roblox_user = roblox_user_result.unwrap();
+    let user_id_vector = user_id_option.unwrap();
+    for (username, user_id_option) in user_id_vector {
+        let user_points_payload = users.get(&username).unwrap();
 
-    let succeed_vec: Vec<u32> = vec![];
-    for user in body.users.iter() {
-        let user_option = get_user_struct(user.user_id, database).await;
+        if user_id_option.is_none() {
+            continue;
+        }
+        let user_id = user_id_option.unwrap();
 
+        let user_option = get_user_struct(user_id, database).await;
         if user_option.is_some() {
             let mut user_struct = user_option.unwrap();
 
             let mut points = user_struct.points as i32;
-            points += user.increment;
+            points += user_points_payload.increment;
+
+            if user_points_payload.add_event {
+                user_struct.events += 1;
+            }
 
             user_struct.points += points as u64;
+
+            log_to_discord(format!(
+                "Adding {} bP to {} - {}",
+                user_points_payload.increment, user_struct.user_id, user_struct.name
+            ))
+            .await;
 
             let _create_result = database
                 .put(
@@ -138,13 +178,22 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
                 .await;
 
             check_promotion(&mut user_struct, &mut roblox_user).await;
+            succeed_vec.push((username, user_id, user_points_payload.increment));
         }
     }
 
-    HttpResponse::Ok().json(succeed_vec)
+    let ok_string: String = succeed_vec
+        .iter()
+        .map(|(username, user_id, increment)| {
+            format!("Added {} bP to {} - {}\n", increment, user_id, username)
+        })
+        .collect();
+
+    HttpResponse::Ok().json(ok_string)
 }
 
 pub fn configure_users(cfg: &mut web::ServiceConfig) {
     cfg.service(new_get_user);
     cfg.service(create_user);
+    cfg.service(increment_points);
 }

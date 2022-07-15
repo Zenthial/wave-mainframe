@@ -4,7 +4,7 @@ mod logs;
 mod roblox;
 mod routes;
 
-use actix_web::middleware::Logger;
+use actix_web::middleware::{self, Logger};
 use actix_web::{get, web, App, HttpServer};
 use env_logger::Env;
 use firebase_realtime_database::{create_database, get_oauth_token, Database};
@@ -37,12 +37,16 @@ async fn main() -> Result<()> {
 
     let token = get_oauth_token("firebase-key.json").await.unwrap();
 
-    env_logger::init_from_env(Env::default().default_filter_or("info"));
+    env_logger::builder()
+        .target(env_logger::Target::Stdout)
+        .parse_env(Env::default().default_filter_or("info"))
+        .init();
 
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
             .wrap(Logger::new("%a %{User-Agent}i"))
+            .wrap(middleware::NormalizePath::trim())
             .app_data(web::Data::new(AppState {
                 database: create_database("wave-mainframe-default-rtdb", token.as_str()),
                 roblox_user: RwLock::new(user.clone()),

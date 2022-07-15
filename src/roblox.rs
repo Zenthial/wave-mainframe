@@ -54,6 +54,59 @@ pub async fn get_user_info_from_id(user_id: u64) -> Result<UsernameResponse, req
     Ok(username_response)
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserIdResponse {
+    requested_username: String,
+    has_verified_badge: bool,
+    pub id: u32,
+    name: String,
+    display_name: String,
+}
+
+#[derive(Deserialize)]
+struct UserIdResponsePayload {
+    data: Vec<UserIdResponse>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UserIdFromUsernamePayload {
+    usernames: Vec<String>,
+    exclude_banned_users: bool,
+}
+
+pub async fn get_user_ids_from_usernames(
+    usernames: Vec<String>,
+) -> Result<HashMap<String, Option<u32>>, reqwest::Error> {
+    let payload = UserIdFromUsernamePayload {
+        usernames: usernames.clone(),
+        exclude_banned_users: true,
+    };
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post("https://users.roblox.com/v1/usernames/users")
+        .json(&payload)
+        .send()
+        .await?;
+
+    let user_id_response_payload = response.json::<UserIdResponsePayload>().await?;
+
+    let mut user_id_response_hash_map: HashMap<String, Option<u32>> = HashMap::new();
+
+    for name in usernames.iter() {
+        let name_clone = name.clone().to_string();
+        user_id_response_hash_map.insert(name_clone, None);
+    }
+    for user_id_response in user_id_response_payload.data.iter() {
+        user_id_response_hash_map
+            .insert(user_id_response.name.to_owned(), Some(user_id_response.id));
+    }
+
+    Ok(user_id_response_hash_map)
+}
+
 pub async fn get_rank_in_group(group_id: u64, user_id: u64) -> Result<Option<u64>, reqwest::Error> {
     let response = reqwest::get(format!(
         "https://groups.roblox.com/v2/users/{}/groups/roles",

@@ -1624,6 +1624,7 @@ dependencies = [
  "actix-web",
  "env_logger",
  "firebase_realtime_database",
+ "log",
  "rand",
  "reqwest",
  "serde",
