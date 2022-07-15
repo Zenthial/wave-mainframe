@@ -30,13 +30,13 @@ pub async fn get_verification_body<T: DeserializeOwned>(
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct VerifiedStruct {
-    pub roblox_user_id: u32,
+    pub roblox_id: u32,
     pub discord_id: String,
 }
 
 pub async fn is_verified(discord_user_id: String, database: &Database) -> Option<VerifiedStruct> {
     get_verification_body::<VerifiedStruct>(
-        format!("verify/verified/{}", discord_user_id).as_str(),
+        format!("verification/discord/{}", discord_user_id).as_str(),
         database,
     )
     .await

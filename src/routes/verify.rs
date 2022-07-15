@@ -34,7 +34,7 @@ async fn request_verification(body: Json<Verification>, app_state: Data<AppState
 
     let verification_create_result = database
         .put(
-            format!("verify/awaiting/{}", body.roblox_username).as_str(),
+            format!("verification/awaiting/{}", body.roblox_username).as_str(),
             &verification_body,
         )
         .await;
@@ -62,7 +62,7 @@ async fn check_verification(
     let database = &app_state.database;
 
     let verification_option = get_verification_body::<VerificationBody>(
-        format!("verify/awaiting/{}", body.username).as_str(),
+        format!("verification/awaiting/{}", body.username).as_str(),
         database,
     )
     .await;
@@ -73,17 +73,17 @@ async fn check_verification(
 
     let verification_body = verification_option.unwrap();
     let verified_struct = VerifiedStruct {
-        roblox_user_id: body.user_id,
+        roblox_id: body.user_id,
         discord_id: verification_body.discord_id.clone(),
     };
     let _put_result = database
         .put(
-            format!("verify/verified/{}", verification_body.discord_id).as_str(),
+            format!("verification/discord/{}", verification_body.discord_id).as_str(),
             &verified_struct,
         )
         .await;
 
-    HttpResponse::Ok().body("yo")
+    HttpResponse::Ok().body("Success!")
 }
 
 /// Verification checker
