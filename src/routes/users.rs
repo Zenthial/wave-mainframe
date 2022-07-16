@@ -145,7 +145,7 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
     let users: HashMap<String, &PointUser> = body
         .users
         .iter()
-        .map(|user| (user.username.to_owned(), user))
+        .map(|user| (user.username.to_owned().to_lowercase(), user))
         .collect();
 
     let usernames_vector: Vec<String> = users
@@ -162,7 +162,7 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
     let mut roblox_user = roblox_user_result.unwrap();
     let user_id_vector = user_id_option.unwrap();
     for (username, user_id_option) in user_id_vector {
-        let user_points_payload = users.get(&username).unwrap();
+        let user_points_payload = users.get(&username.to_lowercase()).unwrap();
 
         if user_id_option.is_none() {
             continue;
@@ -173,14 +173,11 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
         if user_option.is_some() {
             let mut user_struct = user_option.unwrap();
 
-            let mut points = user_struct.points as i32;
-            points += user_points_payload.increment;
-
             if user_points_payload.add_event {
                 user_struct.events += 1;
             }
 
-            user_struct.points += points as u32;
+            user_struct.points += user_points_payload.increment;
 
             log_to_discord(format!(
                 "Adding {} bP to {} - {}",
@@ -195,17 +192,19 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
                 )
                 .await;
 
-            check_promotion(&mut user_struct, &mut roblox_user).await;
+            check_promotion(&mut user_struct, database, &mut roblox_user).await;
             succeed_vec.push((username, user_id, user_points_payload.increment));
         }
     }
 
-    let ok_string: String = succeed_vec
+    let mut ok_string: String = succeed_vec
         .iter()
         .map(|(username, user_id, increment)| {
             format!("Added {} bP to {} - {}\n", increment, user_id, username)
         })
         .collect();
+
+    ok_string += "";
 
     HttpResponse::Ok().json(ok_string)
 }

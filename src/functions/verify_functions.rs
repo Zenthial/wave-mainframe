@@ -16,12 +16,16 @@ pub async fn get_verification_map(
     let awaiting_result = database.get("verification/awaiting/").await;
 
     if let Ok(response) = awaiting_result {
-        let user_map_option = response
+        let result = response
             .json::<Option<HashMap<String, VerificationBody>>>()
-            .await
-            .unwrap();
+            .await;
 
-        return user_map_option;
+        if result.is_err() {
+            return None;
+        } else {
+            let user_map_option = result.unwrap();
+            return user_map_option;
+        }
     }
 
     None

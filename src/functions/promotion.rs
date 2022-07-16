@@ -1,3 +1,5 @@
+use firebase_realtime_database::Database;
+
 use crate::{
     definitions::ranks::Ranks,
     definitions::users_definitions::User,
@@ -5,9 +7,11 @@ use crate::{
     roblox::RobloxAccount,
 };
 
+use super::users_functions::reconcile_user;
+
 static WIJ_ID: u32 = 3747606;
 
-pub fn get_required_points(rank: Ranks) -> Option<u32> {
+pub fn get_required_points(rank: Ranks) -> Option<i32> {
     match rank {
         Ranks::StaffSergeant => Some(900),
         Ranks::TechSergeant => Some(600),
@@ -115,10 +119,16 @@ pub async fn demote(user: &mut User, roblox_account: &mut RobloxAccount) -> bool
     }
 }
 
-pub async fn check_promotion(user: &mut User, roblox_account: &mut RobloxAccount) {
+pub async fn check_promotion(
+    user: &mut User,
+    database: &Database,
+    roblox_account: &mut RobloxAccount,
+) {
     if should_promote(user) {
         promote(user, roblox_account).await;
+        reconcile_user(user, database).await;
     } else if should_demote(user) {
         demote(user, roblox_account).await;
+        reconcile_user(user, database).await;
     }
 }

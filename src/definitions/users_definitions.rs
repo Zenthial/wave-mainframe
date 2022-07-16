@@ -19,13 +19,13 @@ pub struct User {
     pub user_id: u32,
     pub name: String,
     #[serde(default)]
-    pub points: u32,
+    pub points: i32,
     #[serde(default)]
     pub events: u32,
     #[serde(default)]
-    pub floor_points: Option<u32>,
+    pub floor_points: Option<i32>,
     #[serde(default)]
-    pub goal_points: Option<u32>,
+    pub goal_points: Option<i32>,
     #[serde(default)]
     pub rank: Ranks,
     pub divisions: Option<Divisions>,
@@ -37,13 +37,13 @@ pub struct DeserializeUser {
     pub user_id: u32,
     pub name: String,
     #[serde(default)]
-    pub points: u32,
+    pub points: i32,
     #[serde(default)]
     pub events: u32,
     #[serde(default)]
-    pub floor_points: Option<u32>,
+    pub floor_points: Option<i32>,
     #[serde(default)]
-    pub goal_points: Option<u32>,
+    pub goal_points: Option<i32>,
     #[serde(default)]
     pub rank: String,
     pub divisions: Option<Divisions>,
