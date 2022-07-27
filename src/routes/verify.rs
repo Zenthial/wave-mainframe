@@ -9,6 +9,7 @@ use log::info;
 use serde::Deserialize;
 
 use crate::{
+    functions::db_functions::safe_to_use,
     functions::verify_functions::{
         get_verification_body, is_verified, VerificationBody, VerifiedStruct,
     },
@@ -27,7 +28,8 @@ struct Verification {
 #[put("verify")]
 async fn request_verification(body: Json<Verification>, app_state: Data<AppState>) -> HttpResponse {
     info!("{:?}", body);
-    let database = &app_state.database;
+    safe_to_use(&app_state.database).await;
+    let database = &app_state.database.read().unwrap();
 
     let verification_body = VerificationBody {
         discord_id: body.discord_id.clone(),
@@ -44,6 +46,7 @@ async fn request_verification(body: Json<Verification>, app_state: Data<AppState
             &verification_body,
         )
         .await;
+    info!("{:?}", verification_create_result);
 
     match verification_create_result {
         Ok(response) => HttpResponse::Ok().body(response.text().await.unwrap()),
@@ -65,7 +68,8 @@ async fn check_verification(
     body: Json<RobloxVerification>,
     app_state: Data<AppState>,
 ) -> HttpResponse {
-    let database = &app_state.database;
+    safe_to_use(&app_state.database).await;
+    let database = &app_state.database.read().unwrap();
 
     let verification_option = get_verification_body::<VerificationBody>(
         format!("verification/awaiting/{}", body.username.to_lowercase()).as_str(),
@@ -96,9 +100,10 @@ async fn check_verification(
 /// Gets the verification struct from the discord userid
 #[get("verify/{discord_id}")]
 async fn get_verification(path: Path<String>, app_state: Data<AppState>) -> HttpResponse {
-    let discord_user_id = path.into_inner();
-    let database = &app_state.database;
+    safe_to_use(&app_state.database).await;
+    let database = &app_state.database.read().unwrap();
 
+    let discord_user_id = path.into_inner();
     let verification_option = is_verified(discord_user_id, database).await;
     if verification_option.is_none() {
         return HttpResponse::InternalServerError()

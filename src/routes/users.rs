@@ -8,6 +8,7 @@ use crate::{
     definitions::users_definitions::User,
     definitions::{ranks::Ranks, users_definitions::DeserializeUser},
     functions::{
+        db_functions::safe_to_use,
         promotion::check_promotion,
         users_functions::{self, reconcile_user},
     },
@@ -53,7 +54,8 @@ async fn get_real_user_from_deserialize(
 
 #[put("users/{user_id}")]
 async fn create_user(path: Path<u32>, user: Json<User>, app_state: Data<AppState>) -> HttpResponse {
-    let database = &app_state.database;
+    safe_to_use(&app_state.database).await;
+    let database = &app_state.database.read().unwrap();
 
     let user_id = path.into_inner();
     let create_result = database
@@ -91,7 +93,8 @@ async fn get_user_struct(user_id: u32, database: &Database) -> Option<User> {
 
 #[get("users/{user_id}")]
 async fn get_user(path: Path<u32>, app_state: Data<AppState>) -> HttpResponse {
-    let database = &app_state.database;
+    safe_to_use(&app_state.database).await;
+    let database = &app_state.database.read().unwrap();
 
     let user_id = path.into_inner();
     let user_option = get_user_struct(user_id, database).await;
@@ -130,7 +133,8 @@ struct PointsStruct {
 
 #[post("users/points")]
 async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -> HttpResponse {
-    let database = &app_state.database;
+    safe_to_use(&app_state.database).await;
+    let database = &app_state.database.read().unwrap();
     let roblox_user_result = app_state.roblox_user.write();
     if roblox_user_result.is_err() {
         let err = roblox_user_result.unwrap_err();
