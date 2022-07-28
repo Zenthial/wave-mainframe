@@ -463,9 +463,9 @@ dependencies = [
 
 [[package]]
 name = "firebase_realtime_database"
-version = "0.1.8"
+version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06263933ea27ab3db917e708f87c1d76f4bc181f998059127f802bb352df4494"
+checksum = "833b14c32172692e32aa2ac3aa7a589ba80581af416611e6a2ad47bafdd4542b"
 dependencies = [
  "gcp_auth",
  "reqwest",

@@ -93,7 +93,7 @@ async fn get_user_struct(user_id: u32, database: &Database) -> Option<User> {
 
 #[get("users/{user_id}")]
 async fn get_user(path: Path<u32>, app_state: Data<AppState>) -> HttpResponse {
-    safe_to_use(&app_state.database).await;
+    // safe_to_use(&app_state.database).await;
     let database = &app_state.database.read().unwrap();
 
     let user_id = path.into_inner();

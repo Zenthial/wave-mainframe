@@ -1,6 +1,7 @@
 use std::sync::RwLock;
 
 use firebase_realtime_database::{get_oauth_token, Database};
+use log::info;
 
 async fn refresh_token(db: &mut Database) {
     let token = get_oauth_token("firebase-key.json").await.unwrap();
@@ -9,7 +10,9 @@ async fn refresh_token(db: &mut Database) {
 }
 
 async fn check_verified(db: &Database) -> bool {
-    let response = db.get("/online").await;
+    info!("getting");
+    let response = db.get("online").await;
+    info!("{:?}", response);
 
     if let Ok(res) = response {
         if res.status() == 401 {
@@ -20,15 +23,13 @@ async fn check_verified(db: &Database) -> bool {
     return true;
 }
 
-pub async fn safe_to_use(guard: &RwLock<Database>) -> bool {
+pub async fn safe_to_use(guard: &RwLock<Database>) {
     let read_guard = guard.read().unwrap();
 
     if !check_verified(&read_guard).await {
+        info!("getting guard");
         let mut write_guard = guard.write().unwrap();
+        info!("got guard");
         refresh_token(&mut write_guard).await;
-
-        drop(write_guard);
     }
-
-    return true;
 }
