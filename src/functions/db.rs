@@ -1,4 +1,4 @@
-use std::sync::RwLock;
+use parking_lot::RwLock;
 
 use firebase_realtime_database::{get_oauth_token, Database};
 use log::info;
@@ -24,11 +24,12 @@ async fn check_verified(db: &Database) -> bool {
 }
 
 pub async fn safe_to_use(guard: &RwLock<Database>) {
-    let read_guard = guard.read().unwrap();
+    let read_guard = guard.read();
 
     if !check_verified(&read_guard).await {
+        drop(read_guard);
         info!("getting guard");
-        let mut write_guard = guard.write().unwrap();
+        let mut write_guard = guard.write();
         info!("got guard");
         refresh_token(&mut write_guard).await;
     }

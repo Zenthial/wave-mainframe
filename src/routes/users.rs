@@ -5,12 +5,12 @@ use reqwest::Response;
 use serde::Deserialize;
 
 use crate::{
-    definitions::users_definitions::User,
-    definitions::{ranks::Ranks, users_definitions::DeserializeUser},
+    definitions::users::User,
+    definitions::{ranks::Ranks, users::DeserializeUser},
     functions::{
-        db_functions::safe_to_use,
+        db::safe_to_use,
         promotion::check_promotion,
-        users_functions::{self, reconcile_user},
+        users::{self, reconcile_user},
     },
     logs::{log_error, log_to_discord},
     roblox::get_user_ids_from_usernames,
@@ -55,7 +55,7 @@ async fn get_real_user_from_deserialize(
 #[put("users/{user_id}")]
 async fn create_user(path: Path<u32>, user: Json<User>, app_state: Data<AppState>) -> HttpResponse {
     safe_to_use(&app_state.database).await;
-    let database = &app_state.database.read().unwrap();
+    let database = &app_state.database.read();
 
     let user_id = path.into_inner();
     let create_result = database
@@ -94,7 +94,7 @@ async fn get_user_struct(user_id: u32, database: &Database) -> Option<User> {
 #[get("users/{user_id}")]
 async fn get_user(path: Path<u32>, app_state: Data<AppState>) -> HttpResponse {
     // safe_to_use(&app_state.database).await;
-    let database = &app_state.database.read().unwrap();
+    let database = &app_state.database.read();
 
     let user_id = path.into_inner();
     let user_option = get_user_struct(user_id, database).await;
@@ -102,7 +102,7 @@ async fn get_user(path: Path<u32>, app_state: Data<AppState>) -> HttpResponse {
     match user_option {
         Some(user) => return HttpResponse::Ok().json(user),
         None => {
-            let attempted_created_user = users_functions::create_user_from_id(user_id).await;
+            let attempted_created_user = users::create_user_from_id(user_id).await;
             info!("{:?}", attempted_created_user);
             if attempted_created_user.is_none() {
                 return HttpResponse::BadRequest().body(format!("No user found for {}", user_id));
@@ -134,14 +134,9 @@ struct PointsStruct {
 #[post("users/points")]
 async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -> HttpResponse {
     safe_to_use(&app_state.database).await;
-    let database = &app_state.database.read().unwrap();
-    let roblox_user_result = app_state.roblox_user.write();
-    if roblox_user_result.is_err() {
-        let err = roblox_user_result.unwrap_err();
+    let database = &app_state.database.read();
+    let mut roblox_user = app_state.roblox_user.write();
 
-        log_error(format!("Poison error in RwLock: {}", err.to_string())).await;
-        return HttpResponse::InternalServerError().body("Internal poison error");
-    }
     if body.users.len() == 0 {
         return HttpResponse::InternalServerError().body("Must supply 1 user");
     }
@@ -163,7 +158,6 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
     }
 
     let mut succeed_vec: Vec<(String, u32, i32)> = vec![];
-    let mut roblox_user = roblox_user_result.unwrap();
     let user_id_vector = user_id_option.unwrap();
     for (username, user_id_option) in user_id_vector {
         let user_points_payload = users.get(&username.to_lowercase()).unwrap();

@@ -4,7 +4,7 @@ use log::info;
 use tokio::join;
 
 use crate::definitions::ranks::{Ranks, STRanks, SableRanks};
-use crate::definitions::users_definitions::{Divisions, User, SABLE_ID, ST_ID, WIJ_ID};
+use crate::definitions::users::{Divisions, User, SABLE_ID, ST_ID, WIJ_ID};
 use crate::functions::promotion::get_required_points;
 use crate::roblox::get_rank_in_group;
 

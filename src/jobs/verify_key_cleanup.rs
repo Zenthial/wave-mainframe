@@ -2,7 +2,7 @@ use std::time::{Duration, SystemTime};
 
 use firebase_realtime_database::Database;
 
-use crate::{functions::verify_functions::get_verification_map, logs::log_error};
+use crate::{functions::verify::get_verification_map, logs::log_error};
 
 static CLEANUP_TIMEOUT: u64 = 60000 * 5; // five minutes
 

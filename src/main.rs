@@ -7,22 +7,17 @@ mod routes;
 
 use actix_web::middleware::{self, Logger};
 use actix_web::{get, web, App, HttpServer};
+use definitions::global_state::{AppState, Leaderboard};
 use env_logger::Env;
-use firebase_realtime_database::{create_database, get_oauth_token, Database};
-use roblox::RobloxAccount;
+use firebase_realtime_database::{create_database, get_oauth_token};
+use functions::lb::write_users;
+use parking_lot::RwLock;
 use routes::configure_routes;
 
 use std::{
     fs::File,
     io::{Read, Result},
-    sync::RwLock,
 };
-
-// This struct represents state
-struct AppState {
-    database: RwLock<Database>,
-    roblox_user: RwLock<RobloxAccount>,
-}
 
 #[get("/")]
 async fn index() -> String {
@@ -46,6 +41,9 @@ async fn main() -> Result<()> {
         .parse_env(Env::default().default_filter_or("info"))
         .init();
 
+    write_users(&db).await?;
+    let lb = Leaderboard::new();
+
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
@@ -54,6 +52,7 @@ async fn main() -> Result<()> {
             .app_data(web::Data::new(AppState {
                 database: RwLock::new(db.clone()),
                 roblox_user: RwLock::new(user.clone()),
+                leaderboard: RwLock::new(lb.clone()),
             }))
             .service(index)
             .configure(configure_routes)

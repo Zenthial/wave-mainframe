@@ -9,10 +9,8 @@ use log::info;
 use serde::Deserialize;
 
 use crate::{
-    functions::db_functions::safe_to_use,
-    functions::verify_functions::{
-        get_verification_body, is_verified, VerificationBody, VerifiedStruct,
-    },
+    functions::db::safe_to_use,
+    functions::verify::{get_verification_body, is_verified, VerificationBody, VerifiedStruct},
     AppState,
 };
 
@@ -29,7 +27,7 @@ struct Verification {
 async fn request_verification(body: Json<Verification>, app_state: Data<AppState>) -> HttpResponse {
     info!("{:?}", body);
     safe_to_use(&app_state.database).await;
-    let database = &app_state.database.read().unwrap();
+    let database = &app_state.database.read();
 
     let verification_body = VerificationBody {
         discord_id: body.discord_id.clone(),
@@ -69,7 +67,7 @@ async fn check_verification(
     app_state: Data<AppState>,
 ) -> HttpResponse {
     safe_to_use(&app_state.database).await;
-    let database = &app_state.database.read().unwrap();
+    let database = &app_state.database.read();
 
     let verification_option = get_verification_body::<VerificationBody>(
         format!("verification/awaiting/{}", body.username.to_lowercase()).as_str(),
@@ -101,7 +99,7 @@ async fn check_verification(
 #[get("verify/{discord_id}")]
 async fn get_verification(path: Path<String>, app_state: Data<AppState>) -> HttpResponse {
     safe_to_use(&app_state.database).await;
-    let database = &app_state.database.read().unwrap();
+    let database = &app_state.database.read();
 
     let discord_user_id = path.into_inner();
     let verification_option = is_verified(discord_user_id, database).await;

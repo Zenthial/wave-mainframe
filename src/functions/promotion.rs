@@ -2,12 +2,12 @@ use firebase_realtime_database::Database;
 
 use crate::{
     definitions::ranks::Ranks,
-    definitions::users_definitions::User,
+    definitions::users::User,
     logs::{log_error, log_to_discord},
     roblox::RobloxAccount,
 };
 
-use super::users_functions::reconcile_user;
+use super::users::reconcile_user;
 
 static WIJ_ID: u32 = 3747606;
 
