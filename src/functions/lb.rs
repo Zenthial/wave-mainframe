@@ -4,7 +4,7 @@ use std::{
     io::{BufRead, BufReader, Write},
 };
 
-use firebase_realtime_database::Database;
+use firebase_realtime_database::{Database, FirebaseError};
 use log::info;
 use serde_json::{from_str, to_string};
 use std::io;
@@ -15,10 +15,11 @@ pub async fn write_users(db: &Database) -> io::Result<()> {
     let response_result = db.get("users").await;
 
     if response_result.is_err() {
-        info!(
-            "lb refresh errored with error {}",
-            response_result.unwrap_err().message
-        );
+        let err = response_result.unwrap_err();
+        match err {
+            FirebaseError::GcpAuthError(e) => info!("{:?}", e),
+            FirebaseError::ReqwestError(e) => info!("{:?}", e),
+        }
         return Ok(());
     }
 

@@ -5,10 +5,9 @@ use reqwest::Response;
 use serde::Deserialize;
 
 use crate::{
-    definitions::users::User,
+    definitions::users::{BPLog, User},
     definitions::{ranks::Ranks, users::DeserializeUser},
     functions::{
-        db::safe_to_use,
         promotion::check_promotion,
         users::{self, reconcile_user},
     },
@@ -21,7 +20,7 @@ use actix_web::{
     web::{self, Data, Json, Path},
     HttpResponse,
 };
-use firebase_realtime_database::Database;
+use firebase_realtime_database::{Database, FirebaseError};
 
 async fn get_real_user_from_deserialize(
     response: Response,
@@ -44,6 +43,7 @@ async fn get_real_user_from_deserialize(
         goal_points: d_user.goal_points,
         rank: rank_enum,
         divisions: d_user.divisions,
+        bp_logs: d_user.bp_logs,
     };
 
     reconcile_user(&mut real_user, database).await;
@@ -54,7 +54,6 @@ async fn get_real_user_from_deserialize(
 
 #[put("users/{user_id}")]
 async fn create_user(path: Path<u32>, user: Json<User>, app_state: Data<AppState>) -> HttpResponse {
-    safe_to_use(&app_state.database).await;
     let database = &app_state.database.read();
 
     let user_id = path.into_inner();
@@ -63,8 +62,15 @@ async fn create_user(path: Path<u32>, user: Json<User>, app_state: Data<AppState
         .await;
 
     if create_result.is_err() {
-        let err_str = create_result.unwrap_err();
-        return HttpResponse::InternalServerError().json(err_str.message);
+        let err = create_result.unwrap_err();
+        match err {
+            FirebaseError::GcpAuthError(e) => {
+                return HttpResponse::InternalServerError().body(format!("{:?}", e))
+            }
+            FirebaseError::ReqwestError(e) => {
+                return HttpResponse::InternalServerError().json(format!("{:?}", e))
+            }
+        }
     }
 
     let response = create_result.unwrap();
@@ -93,7 +99,6 @@ async fn get_user_struct(user_id: u32, database: &Database) -> Option<User> {
 
 #[get("users/{user_id}")]
 async fn get_user(path: Path<u32>, app_state: Data<AppState>) -> HttpResponse {
-    // safe_to_use(&app_state.database).await;
     let database = &app_state.database.read();
 
     let user_id = path.into_inner();
@@ -124,16 +129,18 @@ struct PointUser {
     username: String,
     increment: i32,
     add_event: bool,
+    admin_id: u32,
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct PointsStruct {
     users: Vec<PointUser>,
+    place_name: Option<String>,
 }
 
 #[post("users/points")]
 async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -> HttpResponse {
-    safe_to_use(&app_state.database).await;
     let database = &app_state.database.read();
     let mut roblox_user = app_state.roblox_user.write();
 
@@ -176,6 +183,19 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
             }
 
             user_struct.points += user_points_payload.increment;
+
+            // handle bp_logs
+            if user_struct.bp_logs.is_none() {
+                user_struct.bp_logs = Some(vec![]);
+            }
+
+            let mut logs = user_struct.bp_logs.unwrap();
+            let mut log = BPLog::new(user_points_payload.admin_id, user_points_payload.increment);
+            if body.place_name.is_some() {
+                log.add_place(body.place_name.as_ref().unwrap())
+            }
+            logs.push(log);
+            user_struct.bp_logs = Some(logs);
 
             log_to_discord(format!(
                 "Adding {} bP to {} - {}",

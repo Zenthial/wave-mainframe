@@ -5,11 +5,11 @@ use actix_web::{
     web::{Data, Json, Path, ServiceConfig},
     HttpResponse,
 };
+use firebase_realtime_database::FirebaseError;
 use log::info;
 use serde::Deserialize;
 
 use crate::{
-    functions::db::safe_to_use,
     functions::verify::{get_verification_body, is_verified, VerificationBody, VerifiedStruct},
     AppState,
 };
@@ -26,7 +26,6 @@ struct Verification {
 #[put("verify")]
 async fn request_verification(body: Json<Verification>, app_state: Data<AppState>) -> HttpResponse {
     info!("{:?}", body);
-    safe_to_use(&app_state.database).await;
     let database = &app_state.database.read();
 
     let verification_body = VerificationBody {
@@ -48,7 +47,14 @@ async fn request_verification(body: Json<Verification>, app_state: Data<AppState
 
     match verification_create_result {
         Ok(response) => HttpResponse::Ok().body(response.text().await.unwrap()),
-        Err(e) => HttpResponse::InternalServerError().body(e.message),
+        Err(err) => match err {
+            FirebaseError::GcpAuthError(e) => {
+                return HttpResponse::InternalServerError().body(format!("{:?}", e))
+            }
+            FirebaseError::ReqwestError(e) => {
+                return HttpResponse::InternalServerError().json(format!("{:?}", e))
+            }
+        },
     }
 }
 
@@ -66,7 +72,6 @@ async fn check_verification(
     body: Json<RobloxVerification>,
     app_state: Data<AppState>,
 ) -> HttpResponse {
-    safe_to_use(&app_state.database).await;
     let database = &app_state.database.read();
 
     let verification_option = get_verification_body::<VerificationBody>(
@@ -98,7 +103,6 @@ async fn check_verification(
 /// Gets the verification struct from the discord userid
 #[get("verify/{discord_id}")]
 async fn get_verification(path: Path<String>, app_state: Data<AppState>) -> HttpResponse {
-    safe_to_use(&app_state.database).await;
     let database = &app_state.database.read();
 
     let discord_user_id = path.into_inner();

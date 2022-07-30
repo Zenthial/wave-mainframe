@@ -59,6 +59,8 @@ pub async fn create_user_from_id(roblox_id: u32) -> Option<User> {
             rank: rank_enum,
             events: 0,
             divisions,
+
+            bp_logs: None,
         };
 
         return Some(user_struct);

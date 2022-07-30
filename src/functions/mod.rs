@@ -1,4 +1,3 @@
-pub mod db;
 pub mod lb;
 pub mod promotion;
 pub mod users;
