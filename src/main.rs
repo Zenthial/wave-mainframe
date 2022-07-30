@@ -28,8 +28,6 @@ async fn main() -> anyhow::Result<()> {
     let mut cookie = String::new();
     cookie_file.read_to_string(&mut cookie).unwrap();
 
-    let user = roblox::create_user(cookie, true).await;
-
     let job_db = Database::from_path("wave-mainframe-default-rtdb", "firebase-key.json")?;
     write_users(&job_db).await?;
     jobs::start_jobs(job_db);
@@ -39,11 +37,11 @@ async fn main() -> anyhow::Result<()> {
         .parse_env(Env::default().default_filter_or("info"))
         .init();
 
-    let lb = Leaderboard::new();
-
+    let user = roblox::create_user(cookie, true).await;
     HttpServer::new(move || {
         let main_db =
             Database::from_path("wave-mainframe-default-rtdb", "firebase-key.json").unwrap();
+        let lb = Leaderboard::new();
 
         App::new()
             .wrap(Logger::default())
@@ -52,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
             .app_data(web::Data::new(AppState {
                 database: RwLock::new(main_db),
                 roblox_user: RwLock::new(user.clone()),
-                leaderboard: RwLock::new(lb.clone()),
+                leaderboard: RwLock::new(lb),
             }))
             .service(index)
             .configure(configure_routes)

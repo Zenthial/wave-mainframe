@@ -124,6 +124,28 @@ async fn get_user(path: Path<u32>, app_state: Data<AppState>) -> HttpResponse {
     }
 }
 
+fn handle_bp_logs(
+    mut user_struct: User,
+    place_name: &Option<String>,
+    admin_id: u32,
+    increment: i32,
+) -> User {
+    // handle bp_logs
+    if user_struct.bp_logs.is_none() {
+        user_struct.bp_logs = Some(vec![]);
+    }
+
+    let mut logs = user_struct.bp_logs.unwrap();
+    let mut log = BPLog::new(admin_id, increment);
+    if place_name.is_some() {
+        log.add_place(place_name.as_ref().unwrap())
+    }
+    logs.push(log);
+    user_struct.bp_logs = Some(logs);
+
+    user_struct
+}
+
 #[derive(Deserialize, Debug)]
 struct PointUser {
     username: String,
@@ -165,6 +187,7 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
     }
 
     let mut succeed_vec: Vec<(String, u32, i32)> = vec![];
+    let mut fail_vec: Vec<(String, u32, i32)> = vec![];
     let user_id_vector = user_id_option.unwrap();
     for (username, user_id_option) in user_id_vector {
         let user_points_payload = users.get(&username.to_lowercase()).unwrap();
@@ -189,13 +212,12 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
                 user_struct.bp_logs = Some(vec![]);
             }
 
-            let mut logs = user_struct.bp_logs.unwrap();
-            let mut log = BPLog::new(user_points_payload.admin_id, user_points_payload.increment);
-            if body.place_name.is_some() {
-                log.add_place(body.place_name.as_ref().unwrap())
-            }
-            logs.push(log);
-            user_struct.bp_logs = Some(logs);
+            user_struct = handle_bp_logs(
+                user_struct,
+                &body.place_name,
+                user_points_payload.admin_id,
+                user_points_payload.increment,
+            );
 
             log_to_discord(format!(
                 "Adding {} bP to {} - {}",
@@ -212,6 +234,39 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
 
             check_promotion(&mut user_struct, database, &mut roblox_user).await;
             succeed_vec.push((username, user_id, user_points_payload.increment));
+        } else {
+            let attempted_created_user = users::create_user_from_id(user_id).await;
+            if attempted_created_user.is_none() {
+                log_to_discord(format!(
+                    "Failed to give {} bP to {} - {}.\nUser may need to /wij-verify or join WIJ",
+                    user_points_payload.increment, user_id, username
+                ))
+                .await;
+                fail_vec.push((username, user_id, user_points_payload.increment));
+                continue;
+            }
+
+            let mut user_struct = attempted_created_user.unwrap();
+            user_struct.points += user_points_payload.increment;
+
+            user_struct = handle_bp_logs(
+                user_struct,
+                &body.place_name,
+                user_points_payload.admin_id,
+                user_points_payload.increment,
+            );
+
+            log_to_discord(format!(
+                "Adding {} bP to {} - {}",
+                user_points_payload.increment, user_struct.user_id, user_struct.name
+            ))
+            .await;
+            let _create_result = database
+                .put(format!("users/{}", user_id).as_str(), &user_struct)
+                .await;
+
+            check_promotion(&mut user_struct, database, &mut roblox_user).await;
+            succeed_vec.push((username, user_id, user_points_payload.increment));
         }
     }
 
@@ -221,6 +276,13 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
             format!("Added {} bP to {} - {}\n", increment, user_id, username)
         })
         .collect();
+
+    for (username, user_id, increment) in fail_vec {
+        ok_string += &format!(
+            "Failed to give {} bP to {} - {}.\nUser may need to /wij-verify",
+            increment, user_id, username
+        );
+    }
 
     ok_string += "";
 
