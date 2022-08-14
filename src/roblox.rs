@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use reqwest;
 use serde::{Deserialize, Serialize};
@@ -147,6 +150,7 @@ pub struct RobloxAccount {
     cookie: String,
     headers: HashMap<String, String>,
     token: String,
+    last_token_get: Option<Instant>,
 }
 
 impl RobloxAccount {
@@ -155,6 +159,7 @@ impl RobloxAccount {
             cookie,
             headers: HashMap::new(),
             token: String::new(),
+            last_token_get: None,
         }
     }
 
@@ -187,6 +192,7 @@ impl RobloxAccount {
                         .to_string();
 
                     self.token = token.clone();
+                    self.last_token_get == Some(Instant::now());
                     return Some(token);
                 } else {
                     return None;
@@ -219,7 +225,7 @@ impl RobloxAccount {
         rank: Ranks,
     ) -> Result<bool, reqwest::Error> {
         let mut token = self.token.clone();
-        if token == "" {
+        if token == "" && self.last_token_get == None {
             let potential_csrf_token = self.get_current_token().await;
             match potential_csrf_token {
                 Some(t) => token = t,
@@ -229,6 +235,21 @@ impl RobloxAccount {
                     )
                     .await;
                     return Ok(false);
+                }
+            }
+        } else if self.last_token_get.is_some() {
+            let last_get = self.last_token_get.unwrap();
+            if Instant::now().duration_since(last_get) > Duration::from_secs(60000) {
+                let potential_csrf_token = self.get_current_token().await;
+                match potential_csrf_token {
+                    Some(t) => token = t,
+                    None => {
+                        log_error(
+                            "Failed to retrieve xCRSF token, is the roblox API down?".to_string(),
+                        )
+                        .await;
+                        return Ok(false);
+                    }
                 }
             }
         }

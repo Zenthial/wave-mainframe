@@ -54,11 +54,20 @@ pub async fn create_user_from_id(roblox_id: u32) -> Option<User> {
                     0
                 }
             },
+            total_points: {
+                if required_points.is_some() {
+                    required_points.unwrap()
+                } else {
+                    0
+                }
+            },
             floor_points: required_points,
             goal_points,
             rank: rank_enum,
             events: 0,
             divisions,
+
+            prestige: None,
 
             bp_logs: None,
         };

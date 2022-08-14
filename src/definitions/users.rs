@@ -45,6 +45,8 @@ pub struct User {
     #[serde(default)]
     pub points: i32,
     #[serde(default)]
+    pub total_points: i32,
+    #[serde(default)]
     pub events: u32,
     #[serde(default)]
     pub floor_points: Option<i32>,
@@ -53,6 +55,9 @@ pub struct User {
     #[serde(default)]
     pub rank: Ranks,
     pub divisions: Option<Divisions>,
+
+    #[serde(default)]
+    pub prestige: Option<i32>,
 
     pub bp_logs: Option<Vec<BPLog>>,
 }
@@ -65,6 +70,8 @@ pub struct DeserializeUser {
     #[serde(default)]
     pub points: i32,
     #[serde(default)]
+    pub total_points: i32,
+    #[serde(default)]
     pub events: u32,
     #[serde(default)]
     pub floor_points: Option<i32>,
@@ -73,6 +80,9 @@ pub struct DeserializeUser {
     #[serde(default)]
     pub rank: String,
     pub divisions: Option<Divisions>,
+
+    #[serde(default)]
+    pub prestige: Option<i32>,
 
     pub bp_logs: Option<Vec<BPLog>>,
 }

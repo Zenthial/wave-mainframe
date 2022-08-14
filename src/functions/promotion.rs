@@ -27,6 +27,22 @@ pub fn get_required_points(rank: Ranks) -> Option<i32> {
     }
 }
 
+pub fn get_rank_for_points(points: i32) -> Option<Ranks> {
+    match points {
+        601..=900 => Some(Ranks::StaffSergeant),
+        326..=600 => Some(Ranks::TechSergeant),
+        271..=325 => Some(Ranks::Corporal),
+        191..=270 => Some(Ranks::LanceCorporal),
+        116..=190 => Some(Ranks::Sentinel),
+        66..=115 => Some(Ranks::Fleetman),
+        31..=65 => Some(Ranks::Specialist),
+        11..=30 => Some(Ranks::Operative),
+        1..=10 => Some(Ranks::Trooper),
+        0 => Some(Ranks::Enlisted),
+        _ => None,
+    }
+}
+
 pub fn should_promote(user: &User) -> bool {
     let next_rank = if let Some(rank) = user.rank.get_next() {
         rank

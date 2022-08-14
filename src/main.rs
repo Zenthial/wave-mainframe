@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
     cookie_file.read_to_string(&mut cookie).unwrap();
 
     let job_db = Database::from_path("wave-mainframe-default-rtdb", "firebase-key.json")?;
-    write_users(&job_db).await?;
+    // write_users(&job_db).await?;
     jobs::start_jobs(job_db);
 
     env_logger::builder()

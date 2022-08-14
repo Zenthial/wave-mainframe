@@ -38,10 +38,12 @@ async fn get_real_user_from_deserialize(
         user_id: d_user.user_id,
         name: d_user.name,
         points: d_user.points,
+        total_points: d_user.total_points,
         events: d_user.events,
         floor_points: d_user.floor_points,
         goal_points: d_user.goal_points,
         rank: rank_enum,
+        prestige: d_user.prestige,
         divisions: d_user.divisions,
         bp_logs: d_user.bp_logs,
     };
