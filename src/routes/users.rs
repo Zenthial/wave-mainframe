@@ -192,11 +192,13 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
     let mut fail_vec: Vec<(String, u32, i32)> = vec![];
     let user_id_vector = user_id_option.unwrap();
     for (username, user_id_option) in user_id_vector {
-        let user_points_payload = users.get(&username.to_lowercase()).unwrap();
+        let user_points_payload_option = users.get(&username.to_lowercase());
 
-        if user_id_option.is_none() {
+        if user_id_option.is_none() || user_points_payload_option.is_none() {
             continue;
         }
+
+        let user_points_payload = user_points_payload_option.unwrap();
 
         let user_id = user_id_option.unwrap();
         let user_option = get_user_struct(user_id, database).await;

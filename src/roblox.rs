@@ -192,7 +192,7 @@ impl RobloxAccount {
                         .to_string();
 
                     self.token = token.clone();
-                    self.last_token_get == Some(Instant::now());
+                    self.last_token_get = Some(Instant::now());
                     return Some(token);
                 } else {
                     return None;

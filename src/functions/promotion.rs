@@ -27,7 +27,7 @@ pub fn get_required_points(rank: Ranks) -> Option<i32> {
     }
 }
 
-pub fn get_rank_for_points(points: i32) -> Option<Ranks> {
+pub fn _get_rank_for_points(points: i32) -> Option<Ranks> {
     match points {
         601..=900 => Some(Ranks::StaffSergeant),
         326..=600 => Some(Ranks::TechSergeant),
