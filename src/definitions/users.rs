@@ -2,9 +2,9 @@ use super::ranks::{Ranks, STRanks, SableRanks};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-pub static WIJ_ID: u32 = 3747606;
-pub static ST_ID: u32 = 3758883;
-pub static SABLE_ID: u32 = 5430057;
+pub static WIJ_ID: u64 = 3747606;
+pub static ST_ID: u64 = 3758883;
+pub static SABLE_ID: u64 = 5430057;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Divisions {
@@ -17,13 +17,13 @@ pub struct Divisions {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct BPLog {
     time: String,
-    awarder: u32,
+    awarder: u64,
     amount: i32,
     place_name: Option<String>,
 }
 
 impl BPLog {
-    pub fn new(awarder: u32, amount: i32) -> Self {
+    pub fn new(awarder: u64, amount: i32) -> Self {
         BPLog {
             time: Utc::now().to_string(),
             awarder,
@@ -40,14 +40,14 @@ impl BPLog {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct User {
     #[serde(default)]
-    pub user_id: u32,
+    pub user_id: u64,
     pub name: String,
     #[serde(default)]
     pub points: i32,
     #[serde(default)]
     pub total_points: i32,
     #[serde(default)]
-    pub events: u32,
+    pub events: u64,
     #[serde(default)]
     pub floor_points: Option<i32>,
     #[serde(default)]
@@ -65,14 +65,14 @@ pub struct User {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct DeserializeUser {
     #[serde(default)]
-    pub user_id: u32,
+    pub user_id: u64,
     pub name: String,
     #[serde(default)]
     pub points: i32,
     #[serde(default)]
     pub total_points: i32,
     #[serde(default)]
-    pub events: u32,
+    pub events: u64,
     #[serde(default)]
     pub floor_points: Option<i32>,
     #[serde(default)]

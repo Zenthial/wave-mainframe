@@ -61,7 +61,7 @@ async fn request_verification(body: Json<Verification>, app_state: Data<AppState
 #[derive(Deserialize)]
 struct RobloxVerification {
     username: String,
-    user_id: u32,
+    user_id: u64,
 }
 
 /// Checks to see if a user who joined the roblox game is looking to be verified

@@ -9,7 +9,7 @@ use crate::{
 
 use super::users::reconcile_user;
 
-static WIJ_ID: u32 = 3747606;
+static WIJ_ID: u64 = 3747606;
 
 pub fn get_required_points(rank: Ranks) -> Option<i32> {
     match rank {

@@ -17,7 +17,7 @@ pub struct UsernameResponse {
     created: String,
     is_banned: bool,
     external_app_display_name: Option<String>,
-    pub id: u32,
+    pub id: u64,
     pub name: String,
     pub display_name: String,
 }
@@ -25,17 +25,17 @@ pub struct UsernameResponse {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupInfo {
-    id: u32,
+    id: u64,
     name: String,
-    member_count: u32,
+    member_count: u64,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RoleInfo {
-    id: u32,
+    id: u64,
     name: String,
-    rank: u32,
+    rank: u64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -50,7 +50,7 @@ pub struct GroupResponse {
     data: Option<Vec<UserGroupInfo>>,
 }
 
-pub async fn get_user_info_from_id(user_id: u32) -> Result<UsernameResponse, reqwest::Error> {
+pub async fn get_user_info_from_id(user_id: u64) -> Result<UsernameResponse, reqwest::Error> {
     let response = reqwest::get(format!("https://users.roblox.com/v1/users/{}", user_id)).await?;
     let username_response = response.json::<UsernameResponse>().await?;
 
@@ -62,7 +62,7 @@ pub async fn get_user_info_from_id(user_id: u32) -> Result<UsernameResponse, req
 pub struct UserIdResponse {
     requested_username: String,
     has_verified_badge: bool,
-    pub id: u32,
+    pub id: u64,
     name: String,
     display_name: String,
 }
@@ -81,7 +81,7 @@ struct UserIdFromUsernamePayload {
 
 pub async fn get_user_ids_from_usernames(
     usernames: Vec<String>,
-) -> Result<HashMap<String, Option<u32>>, reqwest::Error> {
+) -> Result<HashMap<String, Option<u64>>, reqwest::Error> {
     let payload = UserIdFromUsernamePayload {
         usernames: usernames.clone(),
         exclude_banned_users: true,
@@ -96,7 +96,7 @@ pub async fn get_user_ids_from_usernames(
 
     let user_id_response_payload = response.json::<UserIdResponsePayload>().await?;
 
-    let mut user_id_response_hash_map: HashMap<String, Option<u32>> = HashMap::new();
+    let mut user_id_response_hash_map: HashMap<String, Option<u64>> = HashMap::new();
 
     for name in usernames.iter() {
         let name_clone = name.clone().to_string();
@@ -110,7 +110,7 @@ pub async fn get_user_ids_from_usernames(
     Ok(user_id_response_hash_map)
 }
 
-pub async fn get_rank_in_group(group_id: u32, user_id: u32) -> Result<Option<u32>, reqwest::Error> {
+pub async fn get_rank_in_group(group_id: u64, user_id: u64) -> Result<Option<u64>, reqwest::Error> {
     let response = reqwest::get(format!(
         "https://groups.roblox.com/v2/users/{}/groups/roles",
         user_id
@@ -142,7 +142,7 @@ pub struct LogoutBody {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SetRankBody {
-    role_id: u32,
+    role_id: u64,
 }
 
 #[derive(Clone, Debug)]
@@ -220,8 +220,8 @@ impl RobloxAccount {
 
     pub async fn set_rank(
         &mut self,
-        user_id: u32,
-        group_id: u32,
+        user_id: u64,
+        group_id: u64,
         rank: Ranks,
     ) -> Result<bool, reqwest::Error> {
         let mut token = self.token.clone();

@@ -8,7 +8,7 @@ use crate::definitions::users::{Divisions, User, SABLE_ID, ST_ID, WIJ_ID};
 use crate::functions::promotion::get_required_points;
 use crate::roblox::get_rank_in_group;
 
-fn parse_rank(rank_result: Result<Option<u32>, reqwest::Error>) -> Option<u32> {
+fn parse_rank(rank_result: Result<Option<u64>, reqwest::Error>) -> Option<u64> {
     match rank_result {
         Ok(rank) => rank,
         Err(_) => {
@@ -17,7 +17,7 @@ fn parse_rank(rank_result: Result<Option<u32>, reqwest::Error>) -> Option<u32> {
     }
 }
 
-pub async fn create_user_from_id(roblox_id: u32) -> Option<User> {
+pub async fn create_user_from_id(roblox_id: u64) -> Option<User> {
     let (user_info_result, ranks) = join!(get_user_info_from_id(roblox_id), get_ranks(roblox_id),);
     info!("{:?} {:?}", user_info_result, ranks);
 
@@ -78,7 +78,7 @@ pub async fn create_user_from_id(roblox_id: u32) -> Option<User> {
     None
 }
 
-pub async fn get_ranks(roblox_id: u32) -> (Option<Ranks>, Option<STRanks>, Option<SableRanks>) {
+pub async fn get_ranks(roblox_id: u64) -> (Option<Ranks>, Option<STRanks>, Option<SableRanks>) {
     let (main_group_result, st_result, sable_result) = join!(
         get_rank_in_group(WIJ_ID, roblox_id),
         get_rank_in_group(ST_ID, roblox_id),

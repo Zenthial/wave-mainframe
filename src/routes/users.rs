@@ -55,7 +55,7 @@ async fn get_real_user_from_deserialize(
 }
 
 #[put("users/{user_id}")]
-async fn create_user(path: Path<u32>, user: Json<User>, app_state: Data<AppState>) -> HttpResponse {
+async fn create_user(path: Path<u64>, user: Json<User>, app_state: Data<AppState>) -> HttpResponse {
     let database = &app_state.database.read();
 
     let user_id = path.into_inner();
@@ -86,7 +86,7 @@ async fn create_user(path: Path<u32>, user: Json<User>, app_state: Data<AppState
     }
 }
 
-async fn get_user_struct(user_id: u32, database: &Database) -> Option<User> {
+async fn get_user_struct(user_id: u64, database: &Database) -> Option<User> {
     let user_get_result = database.get(format!("users/{}", user_id).as_str()).await;
     if user_get_result.is_err() {
         return None;
@@ -100,7 +100,7 @@ async fn get_user_struct(user_id: u32, database: &Database) -> Option<User> {
 }
 
 #[get("users/{user_id}")]
-async fn get_user(path: Path<u32>, app_state: Data<AppState>) -> HttpResponse {
+async fn get_user(path: Path<u64>, app_state: Data<AppState>) -> HttpResponse {
     let database = &app_state.database.read();
 
     let user_id = path.into_inner();
@@ -129,7 +129,7 @@ async fn get_user(path: Path<u32>, app_state: Data<AppState>) -> HttpResponse {
 fn handle_bp_logs(
     mut user_struct: User,
     place_name: &Option<String>,
-    admin_id: u32,
+    admin_id: u64,
     increment: i32,
 ) -> User {
     // handle bp_logs
@@ -153,7 +153,7 @@ struct PointUser {
     username: String,
     increment: i32,
     add_event: bool,
-    admin_id: u32,
+    admin_id: u64,
 }
 
 #[derive(Deserialize, Debug)]
@@ -188,8 +188,8 @@ async fn increment_points(body: Json<PointsStruct>, app_state: Data<AppState>) -
         return HttpResponse::InternalServerError().body("Roblox failed to return user ids");
     }
 
-    let mut succeed_vec: Vec<(String, u32, i32)> = vec![];
-    let mut fail_vec: Vec<(String, u32, i32)> = vec![];
+    let mut succeed_vec: Vec<(String, u64, i32)> = vec![];
+    let mut fail_vec: Vec<(String, u64, i32)> = vec![];
     let user_id_vector = user_id_option.unwrap();
     for (username, user_id_option) in user_id_vector {
         let user_points_payload_option = users.get(&username.to_lowercase());

@@ -52,7 +52,7 @@ pub async fn get_verification_body<T: DeserializeOwned>(
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct VerifiedStruct {
-    pub roblox_id: u32,
+    pub roblox_id: u64,
     pub discord_id: String,
 }
 
